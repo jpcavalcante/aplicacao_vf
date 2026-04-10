@@ -1,0 +1,4 @@
+"0","par(mar = c(8, 5, 4, 2) + 0.1)"
+"0",""
+"0","plot(NA, xlim = c(0.5, length(labels2) + 0.5), ylim = ylim2,"
+"0","     xaxt = ""n"", xlab = """", ylab = ""Valor"", main = """")"

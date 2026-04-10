@@ -1,0 +1,71 @@
+"0","library(xgboost)"
+"0","library(spdep)"
+"0","library(FNN)"
+"0","library(dplyr)"
+"0","library(knitr)"
+"0",""
+"0","# 1. Preparar os dados ----"
+"0","dados_modelo <- st_drop_geometry(dados) # remove geometria se vier de sf"
+"0",""
+"0","# Assegure que todas as variáveis são numéricas"
+"0","features_mat <- dados_modelo %>%"
+"0","  select(comodo, composta, mais5, mulher_resp, igreja_mil_hab) %>%"
+"0","  mutate(across(everything(), ~as.numeric(as.character(.))))"
+"2","G1;H1;Errorh in select(., comodo, composta, mais5, mulher_resp, igreja_mil_hab) : 
+  unused arguments (comodo, composta, mais5, mulher_resp, igreja_mil_hab)
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","# Resposta e offset"
+"0","y <- dados_modelo$VF_2018_2022"
+"0","offset_log <- dados_modelo$log_casos_esp_vf"
+"0",""
+"0","# 2. Inclua o offset como uma feature extra (alternativamente use o argumento ""base_margin"" no xgboost)"
+"0","dtrain <- xgb.DMatrix(data = as.matrix(features_mat),"
+"0","                      label = y,"
+"0","                      base_margin = offset_log) # offset na escala log"
+"2","G1;H1;Errorh: object 'features_mat' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","# 3. Ajustar o modelo XGBoost Poisson ----"
+"0","params <- list("
+"0","  objective = ""count:poisson"","
+"0","  eval_metric = ""poisson-nloglik"""
+"0",")"
+"0","set.seed(123)"
+"0","modelo_xgb <- xgb.train(params = params, data = dtrain, nrounds = 100, verbose = 0)"
+"2","G1;H1;Errorh: object 'dtrain' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","# 4. Predição e análise de resíduos ----"
+"0","pred <- predict(modelo_xgb, as.matrix(features_mat), base_margin = offset_log)"
+"2","G1;H1;Errorh: object 'modelo_xgb' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","# Resíduos tipo deviance (Poisson)"
+"0","residuos <- 2 * (y * log(ifelse(y == 0, 1, y / pred)) - (y - pred))"
+"2","G1;H1;Errorh: object 'pred' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","# 5. Índice de Moran dos resíduos ----"
+"0","coordenadas <- cbind(dados$long_utm, dados$lat_utm)"
+"0","vizinhanca <- knn2nb(knearneigh(coordenadas, k = 4))"
+"0","lista_pesos <- nb2listw(vizinhanca, style = ""W"")"
+"0","moran_xgb <- moran.mc(residuos, listw = lista_pesos, nsim = 999)"
+"2","G1;H1;Errorh: object 'residuos' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","moran_table <- data.frame("
+"0","  Estatistica = round(moran_xgb$statistic, 4),"
+"0","  p.valor = round(moran_xgb$p.value, 4)"
+"0",")"
+"2","G1;H1;Errorh: object 'moran_xgb' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","print(kable(moran_table, caption = ""Índice de Moran dos Resíduos do modelo XGBoost""))"

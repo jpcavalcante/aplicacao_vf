@@ -1,0 +1,7 @@
+"0","tabela_gwr <- as.data.frame(t(modelo_gwzinbr$descript_stats_gwr_param_estimates))"
+"0","tabela_gwr <- round(tabela_gwr, 4)"
+"0","tabela_gwr$Variável <- rownames(tabela_gwr)"
+"0","tabela_gwr <- tabela_gwr[, c(""Variável"", ""Mean"", ""Min"", ""Max"")]"
+"0",""
+"0","#kable(tabela_gwr)"
+"0",""

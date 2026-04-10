@@ -1,0 +1,39 @@
+"0",""
+"0","# 6. R² aproximado ----"
+"0","rss <- sum((y - pred)^2)"
+"2","G1;H1;Errorh: object 'pred' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","tss <- sum((y - mean(y))^2)"
+"0","r2 <- 1 - rss / tss"
+"2","G1;H1;Errorh in rss/tss : non-numeric argument to binary operator
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","cat(""\nR² aproximado do modelo XGBoost Poisson:"", round(r2, 4), ""\n"")"
+"2","G1;H1;Errorh: object 'r2' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","# 7. AIC aproximado ----"
+"0","loglik <- sum(dpois(y, lambda = pred, log = TRUE))"
+"2","G1;H1;Errorh: object 'pred' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","num_params <- modelo_xgb$nfeatures  # número de variáveis do modelo"
+"2","G1;H1;Errorh: object 'modelo_xgb' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","AIC <- -2 * loglik + 2 * num_params"
+"2","G1;H1;Errorh: object 'loglik' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","cat(""AIC aproximado do modelo XGBoost Poisson:"", round(AIC, 2), ""\n"")"
+"2","G1;H1;Errorh in round(AIC, 2) : non-numeric argument to mathematical function
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"

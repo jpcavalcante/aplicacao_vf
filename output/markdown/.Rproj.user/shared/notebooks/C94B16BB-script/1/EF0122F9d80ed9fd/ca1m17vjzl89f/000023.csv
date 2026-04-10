@@ -1,0 +1,8 @@
+"0",""
+"0","tabela_theta <- data.frame("
+"0","  Parametro = ""Theta (superdispersão)"","
+"0","  Estimativa = round(modelo_nb$theta, 4)"
+"0",")"
+"0",""
+"0","kable(tabela_theta, caption = ""Estimativa do Parâmetro de Superdispersão (θ)"",  format = ""markdown"","
+"0","  booktabs = TRUE) "

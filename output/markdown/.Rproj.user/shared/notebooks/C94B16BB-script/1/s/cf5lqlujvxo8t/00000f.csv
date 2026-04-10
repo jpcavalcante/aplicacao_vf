@@ -1,0 +1,25 @@
+"0",""
+"0","library(ggplot2)"
+"0","library(sf)"
+"0","library(dplyr)"
+"0",""
+"0","output_dir <- ""~/Documents/GitHub/dissertacao/analise/output/plots_output"""
+"0","if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)"
+"0",""
+"0","dados_zero <- dados %>%"
+"0","  filter(VF_2018_2022 == 0) %>%"
+"0","  mutate(centroide = st_centroid(geometry)) %>%"
+"0","  mutate(x = st_coordinates(centroide)[,1],"
+"0","         y = st_coordinates(centroide)[,2])"
+"2","G1;[1m[33mError[39m in `filter()`:[22m
+[38;5;232m[36mℹ[38;5;232m In argument: `VF_2018_2022 == 0`.[39m
+[1mCaused by error:[22m
+[33m![39m object 'VF_2018_2022' not found
+Backtrace:
+[90m  1. [39m... %>% ...
+[90m  5. [39m[1m[94mdplyr:::filter.data.frame([39m[22m., VF_2018_2022 == 0[1m[94m)[39m[22m
+[90m  6. [39mdplyr:::filter_rows(.data, dots, by)
+[90m  7. [39mdplyr:::filter_eval(...)
+[90m  9. [39mmask$eval_all_filter(dots, env_filter)
+[90m 10. [39m[1mdplyr[22m (local) eval()
+g"

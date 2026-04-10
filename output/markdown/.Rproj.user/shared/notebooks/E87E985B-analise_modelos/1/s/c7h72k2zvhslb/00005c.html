@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<style>body{background-color:white;}</style>
+<script src="lib/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="lib/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="lib/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="lib/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="lib/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="lib/kePrint-0.0.1/kePrint.js"></script>
+<link href="lib/lightable-0.0.1/lightable.css" rel="stylesheet" />
+
+</head>
+<body>
+<table class="table" style="color: black; width: auto !important; margin-left: auto; margin-right: auto;">
+<caption>Comparação dos coeficientes entre modelos GWZINBR com e sem covariáveis na parte de zeros</caption>
+ <thead>
+<tr>
+<th style="empty-cells: hide;border-bottom:hidden;" colspan="2"></th>
+<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="1"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">GWZINBR (Zero Constante)</div></th>
+<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="1"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">GWZINBR (Zero com Covariáveis)</div></th>
+</tr>
+  <tr>
+   <th style="text-align:left;"> Variável </th>
+   <th style="text-align:left;"> Parte </th>
+   <th style="text-align:right;">  </th>
+   <th style="text-align:right;">  </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr grouplength="4"><td colspan="4" style="border-bottom: 1px solid;"><strong>Parte de Contagem (Binomial Negativa)</strong></td></tr>
+<tr>
+   <td style="text-align:left;padding-left: 2em;" indentlevel="1">  </td>
+   <td style="text-align:left;"> Intercept </td>
+   <td style="text-align:right;"> -7.9510969 </td>
+   <td style="text-align:right;"> -8.1703189 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;padding-left: 2em;" indentlevel="1">  </td>
+   <td style="text-align:left;"> Healthcare_access </td>
+   <td style="text-align:right;"> -0.0943210 </td>
+   <td style="text-align:right;"> -0.0769313 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;padding-left: 2em;" indentlevel="1">  </td>
+   <td style="text-align:left;"> Migration </td>
+   <td style="text-align:right;"> -0.4706669 </td>
+   <td style="text-align:right;"> -0.4813090 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;padding-left: 2em;" indentlevel="1">  </td>
+   <td style="text-align:left;"> Health_behavior </td>
+   <td style="text-align:right;"> 0.0474959 </td>
+   <td style="text-align:right;"> 0.0458758 </td>
+  </tr>
+  <tr grouplength="4"><td colspan="4" style="border-bottom: 1px solid;"><strong>Parte de Inflação de Zeros (Logístico)</strong></td></tr>
+<tr>
+   <td style="text-align:left;padding-left: 2em;" indentlevel="1">  </td>
+   <td style="text-align:left;"> Intercept </td>
+   <td style="text-align:right;"> -20.9200000 </td>
+   <td style="text-align:right;"> -23.1640000 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;padding-left: 2em;" indentlevel="1">  </td>
+   <td style="text-align:left;"> Healthcare_access </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> 0.2503000 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;padding-left: 2em;" indentlevel="1">  </td>
+   <td style="text-align:left;"> Health_behavior </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> 0.3059000 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;padding-left: 2em;" indentlevel="1">  </td>
+   <td style="text-align:left;"> Migration </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> 0.0665000 </td>
+  </tr>
+</tbody>
+</table> <script type="text/x-mathjax-config">MathJax.Hub.Config({tex2jax: {inlineMath: [["$","$"]]}})</script><script async src="https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</body>
+</html>

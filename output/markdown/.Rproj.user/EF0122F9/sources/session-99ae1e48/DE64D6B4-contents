@@ -1,0 +1,189 @@
+---
+output: html_document
+---
+
+### Distribuiçao da variavel resposta
+```{r}
+library(sf)
+library(ggplot2)
+
+
+distritos <- st_read("/Users/josecavalcante/Documents/GWR Poisson Violencia/Script analise descritiva /Distr_Adm_Munic_SP/Distr_Adm_Munic_SP.shp")
+
+
+resposta <- cbind(via["ds_nome"], via["Y"])  
+resposta_map <- merge(distritos, resposta, by.x = "ds_nome", by.y = "ds_nome")
+
+
+variaveis_para_plotar <- c("Y")
+
+plots <- list()
+for (var in variaveis_para_plotar) {
+  p <- ggplot(resposta_map) +
+    geom_sf(aes_string(fill = var)) +
+    scale_fill_gradient2(
+      midpoint = 0, low = "blue", mid = "white", high = "red",
+      name = var
+    ) +
+    labs(title = paste("Mapa de", var)) +
+    theme_minimal()
+  plots[[var]] <- p
+}
+
+
+print(plots[["Y"]])         
+
+
+```
+
+
+### Índice de Moran por simulação de Monte Carlo
+
+```{r}
+library(readxl)       
+library(spdep)        #para vizinhança espacial, pesos espaciais e testes de Moran
+library(sf)           #para manipular objetos espaciais
+library(knitr)
+library(openxlsx)
+via <- read.xlsx("/Users/josecavalcante/Documents/GWR Poisson Violencia/Script analise descritiva /dados - Sheet1.xlsx", sheet = 1)
+#para extrair as coordenadas em utm X e Y
+pontos_sf <- st_as_sf(via, coords = c("longitude", "latitude"), crs = 4326)
+pontos_utm <- st_transform(pontos_sf, crs = 31983)
+
+coords <- st_coordinates(pontos_utm)
+
+vizinhos <- knn2nb(knearneigh(coords, k = 2))
+pesos <- nb2listw(vizinhos, style = "W")
+
+# Moran Monte Carlo
+resultado_monte_carlo <- moran.mc(via$Y, listw = pesos, nsim = 999)
+
+# Tabela de resultados
+tabela_moran <- data.frame(
+  Estatística = c("Índice de Moran (I)", "Rank Observado", "Valor-p", "Método"),
+  Valor = c(
+    round(resultado_monte_carlo$statistic, 5),
+    resultado_monte_carlo$parameter,
+    resultado_monte_carlo$p.value,
+    resultado_monte_carlo$method
+  )
+)
+
+kable(tabela_moran, format = "markdown", booktabs = TRUE,
+      caption = "\\textbf{Resultados do Teste de Moran com Simulação Monte Carlo}")
+
+```
+
+
+```{r, echo= FALSE}
+library(GWmodel)
+library(readxl)
+library(openxlsx)
+via <- read.xlsx("/Users/josecavalcante/Documents/GWR Poisson Violencia/Script analise descritiva /dados - Sheet1.xlsx", sheet = 1)
+#para extrair as coordenadas em utm X e Y
+coords <- st_coordinates(pontos_utm)
+#para transformar em objeto 'sf' com sistema de projecao wgs84
+pontos_sf <- st_as_sf(via, coords = c("longitude", "latitude"), crs = 4326)
+
+#para converter para sirgas 2000 utm 23 sul
+pontos_utm <- st_transform(pontos_sf, crs = 31983)
+
+
+
+#para acrescentar uma coluna de longitude
+pontos_utm$longitude <- coords[, "X"]
+
+#para acrescentar uma coluna de latitude
+pontos_utm$latitude <- coords[, "Y"]
+
+
+
+dados_sp <- as(pontos_utm, "Spatial")
+
+
+
+DM<-gw.dist(dp.locat=coordinates(dados_sp))
+
+bw_otimo_2  <- bw.ggwr(Y ~ X_mbldd + X_prv_m  + offset(log(E)),  
+                 data = dados_sp,
+                 family = "poisson",
+                 approach = "AICc",
+                 kernel = "bisquare", 
+                 adaptive = TRUE,
+                 dMat = DM )
+
+modelo_gwr_2  <- ggwr.basic(Y ~ X_mbldd + X_prv_m  + offset(log(E)),
+                      data =dados_sp,
+                      family = "poisson",
+                      bw = bw_otimo_2, 
+                      kernel = "bisquare", 
+                      adaptive = TRUE,
+                      dMat = DM)
+
+modelo_gwr_2
+
+
+```
+
+
+```{r}
+library(sf)
+library(ggplot2)
+
+
+distritos <- st_read("/Users/josecavalcante/Documents/GWR Poisson Violencia/Script analise descritiva /Distr_Adm_Munic_SP/Distr_Adm_Munic_SP.shp")
+
+df = as.data.frame(modelo_gwr_2$SDF)
+estimativas <- cbind(via["ds_nome"], df)
+est_gwr <- merge(distritos, estimativas, by.x = "ds_nome", by.y = "ds_nome")
+
+coeficientes <- c("Intercept", "X_mbldd", "X_prv_m")
+
+plots <- list()
+for (coef in coeficientes) {
+  p <- ggplot(est_gwr) +
+    geom_sf(aes_string(fill = coef)) +
+    scale_fill_gradient2(midpoint = 0, low = "blue", mid = "white", high = "red", name = coef) +
+    labs(title = paste("Estimativas do Coeficiente", coef, "no Modelo GWR")) +
+    theme_minimal()
+  plots[[coef]] <- p
+}
+
+# Exibir um dos gráficos, por exemplo, o primeiro
+print(plots[["X_mbldd"]])
+print(plots[["X_prv_m"]])
+
+```
+
+```{r}
+library(readxl)       
+library(spdep)        #para vizinhança espacial, pesos espaciais e testes de Moran
+library(sf)           #para manipular objetos espaciais
+library(knitr)
+via <- read.xlsx("/Users/josecavalcante/Documents/GWR Poisson Violencia/Script analise descritiva /dados - Sheet1.xlsx", sheet = 1)
+#para extrair as coordenadas em utm X e Y
+coords <- st_coordinates(pontos_utm)
+
+vizinhos <- knn2nb(knearneigh(coords, k = 2))
+pesos <- nb2listw(vizinhos, style = "W")
+
+# Moran Monte Carlo
+resultado_monte_carlo <- moran.mc(modelo_gwr_2$SDF$residual, listw = pesos, nsim = 999)
+
+# Tabela de resultados
+tabela_moran <- data.frame(
+  Estatística = c("Índice de Moran (I)", "Rank Observado", "Valor-p", "Método"),
+  Valor = c(
+    round(resultado_monte_carlo$statistic, 5),
+    resultado_monte_carlo$parameter,
+    resultado_monte_carlo$p.value,
+    resultado_monte_carlo$method
+  )
+)
+
+kable(tabela_moran, format = "markdown", booktabs = TRUE,
+      caption = "\\textbf{Resultados do Teste de Moran com Simulação Monte Carlo}")
+
+```
+
+

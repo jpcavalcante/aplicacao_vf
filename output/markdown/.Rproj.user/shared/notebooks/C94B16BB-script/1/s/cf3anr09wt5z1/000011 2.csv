@@ -1,0 +1,9 @@
+"0","features <- dados_modelo %>% 
+  select(-VF_2018_2022, -log_casos_esp_vf) %>% 
+  data.frame(lapply(., function(x) as.numeric(as.character(x)))) # garante numérico
+"
+"2","G1;H1;Errorh in select(., -VF_2018_2022, -log_casos_esp_vf) : 
+  unused arguments (-VF_2018_2022, -log_casos_esp_vf)
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"

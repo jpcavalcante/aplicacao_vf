@@ -1,0 +1,7 @@
+"0","title(""Matriz de Correlação das Variáveis (Ordenadas por Grupos)"", line = 1)"
+"0","dev.off()"
+"1","null device 
+          1 
+"
+"0","# Exibe no RMarkdown"
+"0","knitr::include_graphics(output_file)"

@@ -1,0 +1,5 @@
+"0","tabela_alpha<- rbind(data.frame(`GLM NB` = round(alpha_glm, 4)), data.frame('GWZINBR' = alpha_gwr[,2]))
+"
+"2","G1;H1;Errorh in match.names(clabs, names(xi)) : 
+  names do not match previous names
+g"

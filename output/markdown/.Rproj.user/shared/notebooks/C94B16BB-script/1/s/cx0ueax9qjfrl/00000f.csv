@@ -1,0 +1,8 @@
+"0","residuos_model <- residuals(modelo_nb, type = ""deviance"")"
+"0","dados$residuos = residuos_model"
+"0","p <-ggplot(dados)+geom_sf(aes(fill = residuos))+"
+"0","  scale_fill_gradient2(midpoint =median(dados$residuos, na.rm = TRUE),low = ""blue"", mid = ""white"", high = ""red"",name = ""Resíduo"")+"
+"0","  theme_minimal()+"
+"0","  labs(title = ""Resíduos por Distrito"")"
+"0",""
+"0","plot(p)"

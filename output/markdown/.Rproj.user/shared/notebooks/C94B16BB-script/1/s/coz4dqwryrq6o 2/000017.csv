@@ -1,0 +1,66 @@
+"0","library(ggplot2)"
+"0","library(sf)"
+"0","library(dplyr)"
+"0",""
+"0","output_dir <- ""~/Documents/GitHub/dissertacao/analise/output/plots_output"""
+"0","if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)"
+"0",""
+"0","# Calcula os centróides para posicionar os círculos"
+"0","dados_centroides <- dados %>%"
+"0","  mutate(centroide = st_centroid(geometry)) %>%"
+"0","  mutate(x = st_coordinates(centroide)[, 1],"
+"0","         y = st_coordinates(centroide)[, 2])"
+"2","G1;H1;Errorh: object 'dados' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","# Define limites da escala de tamanhos com base na distribuição dos dados"
+"0","min_val <- min(dados_centroides$VF_2018_2022, na.rm = TRUE)"
+"2","G1;H1;Errorh: object 'dados_centroides' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","max_val <- max(dados_centroides$VF_2018_2022, na.rm = TRUE)"
+"2","G1;H1;Errorh: object 'dados_centroides' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","# Mapa com círculos proporcionais"
+"0","p <- ggplot() +"
+"0","  geom_sf(data = dados, fill = ""gray95"", color = ""grey50"", size = 0.25, alpha = 0.8) + # base do mapa"
+"0","  geom_point("
+"0","    data = dados_centroides,"
+"0","    aes(x = x, y = y, size = VF_2018_2022),"
+"0","    color = ""#2171b5"", alpha = 0.8"
+"0","  ) +"
+"0","  scale_size("
+"0","    name = """","
+"0","    range = c(0, 10),  # tamanho dos círculos"
+"0","    limits = c(min_val, max_val),"
+"0","    breaks = pretty(c(min_val, max_val), n = 4)  # quebras automáticas baseadas na distribuição"
+"0","  ) +"
+"0","    annotation_scale("
+"0","      location = ""br"",      # Canto inferior direito"
+"0","      width_hint = 0.25,    # Escala menor"
+"0","      pad_x = unit(0.2, ""cm""), # Ajuste fino horizontal"
+"0","      pad_y = unit(0.2, ""cm"")  # Ajuste fino vertical"
+"0","    ) +"
+"0","    theme_minimal() +"
+"0","    theme("
+"0","      panel.grid = element_line(color = ""grey90"", size = 0.2),  # Grid bem suave"
+"0","      legend.title = element_blank(), "
+"0","      plot.title = element_blank()"
+"0","    )"
+"2","G1;H1;Errorh: object 'dados' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","# Salva o mapa"
+"0","output_file <- file.path(output_dir, ""mapa_vf_circulos.png"")"
+"0","ggsave(output_file, plot = p, width = 9, height = 7, dpi = 150)"
+"2","G1;H1;Errorh: object 'p' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","# Inclui no documento"
+"0","knitr::include_graphics(output_file)"

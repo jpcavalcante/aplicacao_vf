@@ -1,0 +1,5 @@
+"0","# Pacotes necessários"
+"0","library(dplyr)"
+"0","library(pheatmap)"
+"2","G1;H1;Errorh in library(pheatmap) : there is no package called ‘pheatmap’
+g"

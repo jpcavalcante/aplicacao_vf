@@ -1,0 +1,12 @@
+"0","distritos <- st_read(""Distr_Adm_Munic_SP/Distr_Adm_Munic_SP.shp"")
+"
+"1","Reading layer `Distr_Adm_Munic_SP' from data source 
+  `/Users/josecavalcante/Downloads/exemplo_gwr_pois/Distr_Adm_Munic_SP/Distr_Adm_Munic_SP.shp' using driver `ESRI Shapefile'
+"
+"1","Simple feature collection with 96 features and 3 fields
+Geometry type: POLYGON
+Dimension:     XY
+Bounding box:  xmin: 313389.7 ymin: 7343743 xmax: 360618.2 ymax: 7416156
+"
+"1","Projected CRS: SIRGAS 2000 / UTM zone 23S
+"

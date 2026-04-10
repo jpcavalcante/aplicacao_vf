@@ -1,0 +1,16 @@
+"0","# Carregue as bibliotecas necessárias
+library(xgboost)
+"
+"2","G3;Registered S3 method overwritten by 'data.table':
+  method           from
+  print.data.table     
+g"
+"2","G3;
+Attaching package: ‘xgboost’
+
+g"
+"2","G3;The following object is masked from ‘package:dplyr’:
+
+    slice
+
+g"

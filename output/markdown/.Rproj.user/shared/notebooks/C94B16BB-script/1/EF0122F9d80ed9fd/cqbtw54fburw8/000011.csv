@@ -1,0 +1,17 @@
+"0","outliers_ajustados <- ajuste_box$out"
+"0","if (length(outliers_ajustados) > 0) {"
+"0","  outlier_indices <- which(tip_values %in% outliers_ajustados)"
+"0","  text("
+"0","    x = 1,"
+"0","    y = tip_values[outlier_indices],"
+"0","    labels = labels[outlier_indices],"
+"0","    pos = 4,"
+"0","    col = ""black"","
+"0","    cex = 0.8"
+"0","  )"
+"0","}"
+"0","dev.off()"
+"1","null device 
+          1 
+"
+"0","knitr::include_graphics(""~/Documents/GitHub/dissertacao/analise/output/plots_output/boxplot_robusto_taxa_padronizada.png"")"

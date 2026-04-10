@@ -1,0 +1,77 @@
+"0","bw_otimo_2  <- bw.ggwr(Y ~ X_mbldd + X_prv_m  + offset(log(E)),  
+                 data = dados_sp,
+                 family = ""poisson"",
+                 approach = ""AICc"",
+                 kernel = ""bisquare"", 
+                 adaptive = TRUE,
+                 dMat = DM )
+"
+"1"," Iteration    Log-Likelihood(With bandwidth:  66 )
+=========================
+       0        -6612 
+       1        -5383 
+       2        -5605 
+       3        -5585 
+       4        -5582 
+       5        -5583 
+       6        -5583 
+Adaptive bandwidth (number of nearest neighbours): 66 AICc value: 11189.04 
+"
+"1"," Iteration    Log-Likelihood(With bandwidth:  49 )
+=========================
+       0        -6193 
+       1        -4933 
+       2        -5161 
+       3        -5140 
+       4        -5135 
+       5        -5135 
+       6        -5135 
+Adaptive bandwidth (number of nearest neighbours): 49 AICc value: 10303.69 
+ Iteration    Log-Likelihood(With bandwidth:  36 )
+=========================
+       0        -5642 
+       1        -4438 
+       2        -4667 
+       3        -4643 
+       4        -4638 
+       5        -4638 
+       6        -4638 
+       7        -4638 
+Adaptive bandwidth (number of nearest neighbours): 36 AICc value: 9322.692 
+"
+"1"," Iteration    Log-Likelihood(With bandwidth:  31 )
+=========================
+       0        -5338 
+       1        -4173 
+       2        -4408 
+       3        -4385 
+       4        -4379 
+       5        -4379 
+       6        -4379 
+       7        -4379 
+Adaptive bandwidth (number of nearest neighbours): 31 AICc value: 8813.998 
+"
+"1"," Iteration    Log-Likelihood(With bandwidth:  24 )
+=========================
+       0        -4899 
+       1        -3718 
+       2        -3969 
+       3        -3946 
+       4        -3941 
+       5        -3941 
+       6        -3941 
+       7        -3941 
+Adaptive bandwidth (number of nearest neighbours): 24 AICc value: 7956.979 
+"
+"1"," Iteration    Log-Likelihood(With bandwidth:  24 )
+=========================
+       0        -4899 
+       1        -3718 
+       2        -3969 
+       3        -3946 
+       4        -3941 
+       5        -3941 
+       6        -3941 
+       7        -3941 
+Adaptive bandwidth (number of nearest neighbours): 24 AICc value: 7956.979 
+"

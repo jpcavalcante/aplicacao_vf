@@ -1,0 +1,20 @@
+"0","library(ggplot2)"
+"0","library(sf)"
+"0","library(dplyr)"
+"0",""
+"0","output_dir <- ""~/Documents/GitHub/dissertacao/analise/output/plots_output"""
+"0","if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)"
+"0",""
+"0","# Calcula os centróides para posicionar os círculos"
+"0","dados_centroides <- dados %>%"
+"0","  mutate(centroide = st_centroid(geometry)) %>%"
+"0","  mutate(x = st_coordinates(centroide)[, 1],"
+"0","         y = st_coordinates(centroide)[, 2])"
+"2","G1;[1m[33mError[39m in `mutate()`:[22m
+[38;5;232m[36mℹ[38;5;232m In argument: `centroide = st_centroid(geometry)`.[39m
+[1mCaused by error in `UseMethod()`:[22m
+[33m![39m no applicable method for 'st_centroid' applied to an object of class ""c('standardGeneric', 'genericFunction', 'function', 'OptionalFunction', 'PossibleMethod', 'optionalMethod')""
+Backtrace:
+[90m  1. [39mdados %>% mutate(centroide = st_centroid(geometry)) %>% ...
+[90m 10. [39m[1msf[22m::st_centroid(geometry)
+g"

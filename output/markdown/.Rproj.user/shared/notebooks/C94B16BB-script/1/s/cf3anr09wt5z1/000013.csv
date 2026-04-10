@@ -1,0 +1,10 @@
+"0","# Assegure que todas as variáveis são numéricas
+features_mat <- dados_modelo %>%
+  select(comodo, composta, mais5, mulher_resp, igreja_mil_hab) %>%
+  mutate(across(everything(), ~as.numeric(as.character(.))))
+"
+"2","G1;H1;Errorh in select(., comodo, composta, mais5, mulher_resp, igreja_mil_hab) : 
+  unused arguments (comodo, composta, mais5, mulher_resp, igreja_mil_hab)
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"

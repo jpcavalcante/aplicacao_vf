@@ -1,0 +1,8 @@
+"0",""
+"0",""
+"0","# --------- ALPHA EM TABELA SEPARADA ---------"
+"0","df_alpha <- df_alpha # remove coluna 'Variável'"
+"0","kable(df_alpha, align = ""rr"", booktabs = TRUE,"
+"0","      caption = ""Estimativas do parâmetro de superdispersão (alpha)"") %>%"
+"0","  add_header_above(c("" "" = 1, ""Modelos GWZINBR"" = 2)) %>%"
+"0","  kable_styling(full_width = FALSE)"

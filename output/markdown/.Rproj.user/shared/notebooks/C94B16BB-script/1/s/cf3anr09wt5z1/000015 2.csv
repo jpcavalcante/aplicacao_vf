@@ -1,0 +1,4 @@
+"0","cat(""AIC aproximado do modelo XGBoost Poisson:"", round(AIC, 2), ""\n"")
+"
+"1","AIC aproximado do modelo XGBoost Poisson: 40703.65 
+"

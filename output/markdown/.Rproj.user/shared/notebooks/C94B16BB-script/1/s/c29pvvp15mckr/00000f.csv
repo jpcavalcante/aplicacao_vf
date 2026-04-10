@@ -1,0 +1,14 @@
+"0","#install.packages(""gwzinbr"")"
+"0","library(gwzinbr)"
+"0","library(sp)"
+"0",""
+"0","#casos_viol_fis_2018_2022 ~ rendap + comodo + plmenos1 +ate1mora+mulher_resp+igrejas+degradada+offset(log(E)"
+"0","## Modelo"
+"0","dados_modelo_bn = as.data.frame(dados)"
+"0","for (var in c(""comodo"", ""plmenos1"", ""composta"","
+"0","                         ""mais5"", ""mulher_resp"", ""bares_mil_hab"" ,""degradada"",""igreja_mil_hab"")){"
+"0","  dados_modelo_bn[, var] <- as.data.frame(scale(dados_modelo_bn[, var]))"
+"0","}"
+"2","G1;H1;Errorh in `[.data.frame`(dados_modelo_bn, , var) : 
+  undefined columns selected
+g"

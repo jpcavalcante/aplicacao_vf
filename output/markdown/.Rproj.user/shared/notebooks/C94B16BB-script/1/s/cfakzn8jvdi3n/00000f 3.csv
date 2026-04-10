@@ -1,0 +1,70 @@
+"0","dados_modelo = st_drop_geometry(dados)"
+"0",""
+"0","# Supondo que o modelo Poisson esteja ajustado como:"
+"0","modelo_pois <- glm(VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp+igreja_mil_hab + "
+"0","                     offset(log_casos_esp_vf),"
+"0","                   data = dados_modelo, "
+"0","                   family = poisson())"
+"2","G1;H1;Errorh in eval(predvars, data, env) : object 'igreja_mil_hab' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","# 1. Log-verossimilhança"
+"0","log_verossim <- as.numeric(logLik(modelo_pois))"
+"2","G1;H1;Errorh: object 'modelo_pois' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","# 2. Pseudo R² de McFadden"
+"0","modelo_nulo <- update(modelo_pois, . ~ 1)                # Modelo apenas com intercepto"
+"2","G1;H1;Errorh: object 'modelo_pois' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","log_verossim_nulo <- as.numeric(logLik(modelo_nulo))"
+"2","G1;H1;Errorh: object 'modelo_nulo' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","pseudo_r2 <- 1 - (log_verossim / log_verossim_nulo)"
+"2","G1;H1;Errorh: object 'log_verossim' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","# 3. Desvio do resíduo"
+"0","desvio_residuo <- sqrt(deviance(modelo_pois) / df.residual(modelo_pois))"
+"2","G1;H1;Errorh: object 'modelo_pois' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","# 4. AIC"
+"0","aic_valor <- AIC(modelo_pois)"
+"2","G1;H1;Errorh: object 'modelo_pois' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","# 5. AICc (AIC corrigido para amostras pequenas)"
+"0","n <- nobs(modelo_pois)                                   # Número de observações"
+"2","G1;H1;Errorh: object 'modelo_pois' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","k <- length(coef(modelo_pois))                           # Número de parâmetros estimados"
+"2","G1;H1;Errorh: object 'modelo_pois' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","aicc_valor <- aic_valor + (2 * k * (k + 1)) / (n - k - 1)"
+"2","G1;H1;Errorh: object 'aic_valor' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"
+"0","# Exibe os valores"
+"0","data.frame("
+"0","  Estatística = c(""Log-verossimilhança"", ""Pseudo R² (McFadden)"", ""Desvio do resíduo"", ""AIC"", ""AICc""),"
+"0","  Valor = c(log_verossim, pseudo_r2, desvio_residuo, aic_valor, aicc_valor)"
+"0",")"
+"2","G1;H1;Errorh: object 'log_verossim' not found
+Error during wrapup: not that many frames on the stack
+Error: no more error handlers available (recursive errors?); invoking 'abort' restart
+g"

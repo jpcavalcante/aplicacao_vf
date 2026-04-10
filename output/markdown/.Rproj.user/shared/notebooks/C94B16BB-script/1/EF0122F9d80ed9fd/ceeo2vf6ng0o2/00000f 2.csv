@@ -1,0 +1,60 @@
+"0","#install.packages(""gwzinbr"")"
+"0","library(gwzinbr)"
+"0","library(sp)"
+"0",""
+"0","#casos_viol_fis_2018_2022 ~ rendap + comodo + plmenos1 +ate1mora+mulher_resp+igrejas+degradada+offset(log(E)"
+"0","## Modelo"
+"0","dados_modelo_bn = as.data.frame(dados)"
+"0","for (var in c(""comodo"", ""plmenos1"", ""composta"","
+"0","                         ""mais5"", ""mulher_resp"", ""bares_mil_hab"" ,""degradada"",""igreja_mil_hab"")){"
+"0","  dados_modelo_bn[, var] <- as.data.frame(scale(dados_modelo_bn[, var]))"
+"0","}"
+"0",""
+"0","## Modelo"
+"0","gss <- Golden(data = dados_modelo_bn,"
+"0","formula = VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp++igreja_mil_hab+degradada, "
+"0","lat = ""lat_utm"", long = ""long_utm"","
+"0","offset = ""log_casos_esp_vf"", model = ""negbin"", method = ""adaptive_bsq"","
+"0","bandwidth = ""aic"", globalmin = TRUE, distancekm = FALSE,"
+"0","force=TRUE)  "
+"0","print(gss)"
+"1","$h_values
+        h0       h1       h2       h3
+1  5.00000 17.09638 24.57236 36.66874
+2 36.66874 45.32505 50.67495 59.33126
+3 59.33126 73.33747 81.99379 96.00000
+
+$iterations
+   GSS_count       h1       cv1       h2       cv2
+1          1 17.09638 1464.9189 24.57236 1128.3908
+2          1 24.57236 1128.3908 29.19276 1148.6214
+3          1 21.71679 1138.5191 24.57236 1128.3908
+4          1 24.57236 1128.3908 26.33719 1141.5003
+5          1 23.48163 1139.6637 24.57236 1128.3908
+6          2 45.32505 1257.4691 50.67495 1132.2628
+7          2 50.67495 1132.2628 53.98137 1145.1017
+8          2 48.63147 1256.2725 50.67495 1132.2628
+9          3 73.33747  764.4796 81.99379  765.7217
+10         3 67.98758  764.2980 73.33747  764.4796
+11         3 64.68116  765.3332 67.98758  764.2980
+12         3 67.98758  764.2980 70.03106  764.2917
+
+$gss_results
+        aic bandwidth
+1 1128.3908        24
+2 1132.2628        50
+3  764.2917        70
+
+$min_bandwidth
+[1] 70
+
+"
+"0","#gss$min_bandwidth ### 67 - utilizando cv e 70 utilizando aic"
+"0",""
+"0",""
+"0","modelo_negbin <- gwzinbr(data = dados_modelo_bn,"
+"0","formula = VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp+igreja_mil_hab+degradada,"
+"0","lat = ""lat_utm"", long = ""long_utm"",offset = ""log_casos_esp_vf"", method = ""adaptive_bsq"","
+"0","model = ""negbin"", force=TRUE,distancekm = FALSE,h=67)"
+"0",""
+"0",""

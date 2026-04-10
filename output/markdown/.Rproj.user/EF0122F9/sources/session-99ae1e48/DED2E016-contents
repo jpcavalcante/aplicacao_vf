@@ -1,0 +1,131 @@
+#para limpar a memória
+rm(list = ls())
+
+#### Mudar o diretório
+setwd("C:/Users/emanu/Desktop/GE Estatísitca Espacial")
+
+#para carregar o pacote 'pacman'
+library(pacman)
+
+#para carregar os pacotes necessários
+pacman::p_load(
+  foreign,
+  readxl,
+  janitor,
+  lubridate,
+  tidyverse,
+  dplyr,
+  tidyr)
+
+#################################################################################
+
+#para abrir arquivo xlsx - VIA 2020, 2021 e 2022
+VIA <- read_xlsx("~/Documents/GitHub/dissertacao/analise/dados/VIA_geral_202122.xlsx")
+
+#para limpar os nomes das colunas
+VIA <- VIA %>%
+  janitor::clean_names()
+
+# Usando a função pivot_longer() para multiplicar as linhas do arquivo de casos
+VIA_long <- VIA %>%
+  pivot_longer(cols = c(ano2020, ano2021, ano2022), names_to = "Ano", values_to = "VIA")
+
+#renomear a coluna para ficar igual à do outro arquivo
+names(VIA_long)[names(VIA_long) == "dist_adm"] <- "dist_adm_da"
+
+
+##### Chamando arquivo de população ########
+
+pop_proj <- read_xlsx("~/Documents/GitHub/dissertacao/analise/dados/Pop_projetada_202122.xlsx")
+
+#para limpar os nomes das colunas
+pop_proj <- pop_proj %>%
+  janitor::clean_names()
+
+#para ver os nomes das colunas
+names(pop_proj)
+
+##############################################
+
+# Usando a função pivot_longer() para multiplicar as linhas do arquivo de população
+pop_proj_long <- pop_proj %>%
+  pivot_longer(cols = starts_with("ano"), names_to = "Ano", values_to = "pop")
+
+#renomear a coluna para ficar igual à do outro arquivo
+names(pop_proj_long)[names(pop_proj_long) == "da"] <- "dist_adm_da"
+
+
+# Colunas que serão usadas para a junção
+CJ_VIA <- c("da", "Ano")
+CJ_Pop <- c("dist_adm_da", "Ano")
+
+# Usando a função merge() para unir os dataframes
+uniao_VIA_pop <- merge(VIA_long, pop_proj_long, by.x = CJ_VIA, by.y = CJ_Pop, all = TRUE)
+
+#para verificar se a coluna tem algum valor NA
+is.na(uniao_VIA_pop$VIA)
+
+#para substituir o valor NA por zero
+uniao_VIA_pop$VIA <- replace(uniao_VIA_pop$VIA, is.na(uniao_VIA_pop$VIA), 0)
+
+
+#para excluir a coluna 'total'
+uniao_VIA_pop <- uniao_VIA_pop %>% 
+  dplyr::select(-total)
+
+
+dados_combinados <- uniao_VIA_pop %>%
+  group_by(da) %>% 
+  summarise(VIA = sum(VIA),
+            Pop = sum(pop))
+
+
+#Padronização
+
+E <- expected(
+  population = dados_combinados$Pop,
+  cases = dados_combinados$VIA, n.strata = 1
+)
+
+d_combinado <- group_by(dados_combinados, dist_adm_da) %>% 
+  summarize(Y = sum(VIA))
+
+d_combinado$E <- E[match(d_combinado$dist_adm_da, unique(dados_combinados$dist_adm_da))]
+
+d_combinado$TIP <- d_combinado$Y / d_combinado$E
+
+
+######### Unindo taxas padronizadas com o shapfile dos distritos
+
+#para carregar o pacote 'sf'
+library(sf)
+
+distritos <- st_read("C:/Users/emanu/Desktop/MESTRADO Violência/R/Dados/Distr_Adm_Munic_SP_cert.shp")  
+
+#para renomear a coluna
+distritos$dist_adm_da <- distritos$X_NOME_tabn
+
+distritos <- distritos %>% 
+  select(-X_NOME_tabn)
+
+GeoSES <- st_read("./MSP_GeoSES_DIST_ADM.shp")
+
+
+#Tirando a geometria dos distritos
+d_no_geom <- st_drop_geometry(distritos)
+
+# Fazer a junção com a coluna 'id'
+sf_joined <- GeoSES %>%
+  left_join(d_no_geom, by = "ds_nome")
+
+# Visualizando o resultado
+plot(st_geometry(sf_joined))
+
+map <- merge(sf_joined, d_combinado)
+map1 <- merge(map, dados_combinados)
+
+map1 <- map1 %>% 
+  select(-ds_codigo.y)
+
+# Exporte o objeto sf como um shapefile
+st_write(map1, "VIA_geral_c.shp")

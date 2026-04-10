@@ -1,0 +1,134 @@
+"0",""
+"0","# Manipulação de dados e gráficos (prioriza dplyr e ggplot2)"
+"0","library(tidyverse)    # inclui dplyr, ggplot2, tidyr, purrr, readr, tibble, stringr, forcats"
+"0",""
+"0","# Leitura de arquivos"
+"0","library(readxl)       # para ler arquivos .xlsx"
+"0","library(openxlsx)     # para escrever arquivos .xlsx"
+"0",""
+"0","# Mapas e análise espacial"
+"0","library(sf)           # para objetos espaciais (substitui sp)"
+"0","library(spdep)        # dependência espacial"
+"0","library(GWmodel)      # regressão geograficamente ponderada"
+"0","library(mgwnbr)       # sua função customizada de GWR com binomial negativa"
+"0",""
+"0","# Modelagem e estatística"
+"0","library(robustbase)   # modelagem robusta"
+"0","library(car)          # VIF, testes estatísticos"
+"0","library(broom)        # transformar modelos em tidy data frames"
+"0","library(MuMIn)        # seleção de modelos (AIC, etc.)"
+"0","library(MASS)"
+"0",""
+"0","# Visualização adicional"
+"0","library(corrplot)     # correlações"
+"0","library(ggrepel)      # para rótulos em gráficos ggplot2"
+"0",""
+"0","# Tabelas e relatórios"
+"0","library(knitr)"
+"0","library(kableExtra)"
+"0",""
+"0","### dados geoSes e taxa padronizada"
+"0","pop_total <- read.xlsx(""~/Documents/GitHub/dissertacao/analise/dados/dados - Sheet1.xlsx"", sheet = 1) %>% dplyr::select(ds_nome,Pop) %>% rename(populacao_total = Pop)"
+"0",""
+"0","### dados violencia fisica e sexual 2018-2022"
+"0","dados_2018_2022 = read.csv2(""~/Documents/GitHub/dissertacao/analise/dados/vf_fx_eta_gen_2018_2022.csv"",sep = "","",check.names = FALSE)"
+"0",""
+"0","#dados_2018_2022 = read.xlsx(""~/Documents/GitHub/dissertacao/analise/dados/Estatística VF e VS 2016_2022-2.xlsx"", sheet = 3) "
+"0",""
+"0","#### padronizacao do nome do distrito"
+"0","dados_2018_2022$ds_nome <- toupper(stringi::stri_trans_general(dados_2018_2022$DistrAdminist, ""Latin-ASCII"")) "
+"0","dados_2018_2022 = dados_2018_2022 %>% dplyr::select(-c(DistrAdminist))"
+"0","### dados senso 2022"
+"0","dados_senso = read_xlsx(""~/Documents/GitHub/dissertacao/analise/dados/variaveis_distritosMSP.xlsx"")"
+"0",""
+"0","distritos <- st_read(""~/Documents/GitHub/dissertacao/analise/dados/Distr_Adm_Munic_SP/Distr_Adm_Munic_SP.shp"")  "
+"1","Reading layer `Distr_Adm_Munic_SP' from data source 
+  `/Users/josecavalcante/Documents/GitHub/dissertacao/analise/dados/Distr_Adm_Munic_SP/Distr_Adm_Munic_SP.shp' 
+  using driver `ESRI Shapefile'
+"
+"1","Simple feature collection with 96 features and 3 fields
+Geometry type: POLYGON
+Dimension:     XY
+Bounding box:  xmin: 313389.7 ymin: 7343743 xmax: 360618.2 ymax: 7416156
+"
+"1","Projected CRS: SIRGAS 2000 / UTM zone 23S
+"
+"0","# dados renda media "
+"0","dados_renda = read.xlsx(""~/Documents/GitHub/dissertacao/analise/dados/media_renda_distritos_SP.xlsx"", sheet = 1) "
+"0","#### padronizacao do nome do distrito"
+"0","dados_renda$ds_nome <- toupper(stringi::stri_trans_general(dados_renda$NM_DIST, ""Latin-ASCII"")) "
+"0","dados_renda = dados_renda %>% dplyr::select(-c(NM_DIST))"
+"0",""
+"0","#dados populacao em risco"
+"0","pop_risc <- read.xlsx(""~/Documents/GitHub/dissertacao/analise/dados/soma_criancas_distrito.xlsx"") %>% rename(pop_risc_0_9_anos = total)"
+"0",""
+"0","# centroide deslocado "
+"0","centroide_desl <- st_read(""~/Documents/GitHub/dissertacao/analise/dados/novo_centr_msp_desloc/novo_centr_msp_desloc.shp"")   %>% st_drop_geometry"
+"1","Reading layer `novo_centr_msp_desloc' from data source 
+  `/Users/josecavalcante/Documents/GitHub/dissertacao/analise/dados/novo_centr_msp_desloc/novo_centr_msp_desloc.shp' 
+  using driver `ESRI Shapefile'
+Simple feature collection with 96 features and 4 fields
+Geometry type: POINT
+Dimension:     XY
+Bounding box:  xmin: 316976.4 ymin: 7351884 xmax: 358450.5 ymax: 7410242
+Projected CRS: SIRGAS 2000 / UTM zone 23S
+"
+"0","#dados de igrejas (em shapefile)"
+"0","dados_igre <- st_read(""~/Documents/GitHub/dissertacao/analise/dados/bares_igrejas_por_distrito/igrejas_por_distrito.shp"")  %>% st_drop_geometry %>% rename(igrejas = NUMPOINTS) %>% dplyr::select(ds_nome, igrejas)"
+"1","Reading layer `igrejas_por_distrito' from data source 
+  `/Users/josecavalcante/Documents/GitHub/dissertacao/analise/dados/bares_igrejas_por_distrito/igrejas_por_distrito.shp' 
+  using driver `ESRI Shapefile'
+"
+"1","Simple feature collection with 96 features and 3 fields
+Geometry type: POLYGON
+Dimension:     XY
+Bounding box:  xmin: 313384.9 ymin: 7343730 xmax: 360613.4 ymax: 7416143
+"
+"1","Projected CRS: SIRGAS 2000 / UTM zone 23S
+"
+"0","#dados de bares (em shapefile)"
+"0","dados_bar= st_read(""~/Documents/GitHub/dissertacao/analise/dados/bares_igrejas_por_distrito/bares_por_distrito.shp"")  %>% st_drop_geometry%>% rename(bares = NUMPOINTS) %>% dplyr::select(ds_nome, bares)"
+"1","Reading layer `bares_por_distrito' from data source 
+  `/Users/josecavalcante/Documents/GitHub/dissertacao/analise/dados/bares_igrejas_por_distrito/bares_por_distrito.shp' 
+  using driver `ESRI Shapefile'
+"
+"1","Simple feature collection with 96 features and 3 fields
+Geometry type: POLYGON
+Dimension:     XY
+Bounding box:  xmin: 313384.9 ymin: 7343730 xmax: 360613.4 ymax: 7416143
+"
+"1","Projected CRS: SIRGAS 2000 / UTM zone 23S
+"
+"0","#tratando bares e igrejas e unindo em um unico df"
+"0","dados_bar_igre <- merge(dados_igre, dados_bar, by = ""ds_nome"")"
+"0","#base com dados de num esperado + bares e igrejas"
+"0","#dados <- merge(dados, dados_bar_igre, by = ""ds_nome"")"
+"0",""
+"0","### unindo todas as tabelas"
+"0","#casos de violencia fisica"
+"0","dados_1 <- merge(dados_bar_igre, dados_2018_2022, by = ""ds_nome"")"
+"0",""
+"0","#dados_pop_risco"
+"0","dados_2 <- merge(dados_1, pop_risc, by = ""ds_nome"")"
+"0",""
+"0","#dados senso"
+"0","library(stringr)"
+"0","dados_senso$CD_distrito <- str_sub(dados_senso$CD_DIST, -2) "
+"0",""
+"0","dados_3 <- merge(dados_2, dados_senso, by = ""CD_distrito"") #adicionando casos de VF e VS"
+"0",""
+"0","#adicionando o centroide deslocado"
+"0",""
+"0","dados_4 <- merge(dados_3, centroide_desl, by.x = ""ds_nome"", by.y = ""ds_nome"") "
+"0",""
+"0","#populacao total do distrito"
+"0","dados_5 <- merge(dados_4, pop_total, by.x = ""ds_nome"", by.y = ""ds_nome"") "
+"0",""
+"0","### dados renda media "
+"0","dados_6 <- merge(dados_5, dados_renda, by.x = ""ds_nome"", by.y = ""ds_nome"") "
+"0",""
+"0","#### unindo tabelas"
+"0",""
+"0","dados_completo <- distritos %>% left_join(dados_6, by = c(""ds_nome"" = ""ds_nome""))"
+"0",""
+"0",""

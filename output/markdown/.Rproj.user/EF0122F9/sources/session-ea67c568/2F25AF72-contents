@@ -1,0 +1,485 @@
+---
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE
+)
+library(gwzinbr)
+library(MASS)
+library(dplyr)
+library(knitr)
+```
+
+## Carregando dados e rodando os modelos
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+load("southkorea_covid19.RData")
+
+modelo_gwzinbr <- gwzinbr(
+  data = southkorea_covid19,
+  formula = n_covid1 ~ Healthcare_access + Migration + Health_behavior,
+  long = "x",
+  lat = "y",
+  offset = "ln_total",
+  method = "fixed_g",
+  model = "zinb",
+  distancekm = TRUE,
+  h = 1e10,
+  force = TRUE
+)
+
+modelo_nb <- glm.nb(
+  formula = n_covid1 ~ Healthcare_access + Migration + Health_behavior + offset(ln_total),
+  data = southkorea_covid19
+)
+```
+
+
+
+```{r echo=FALSE}
+global_gwr <- modelo_gwzinbr$global_param_estimates[, 1]
+names(global_gwr) <- rownames(modelo_gwzinbr$global_param_estimates)
+global_nb <- coef(modelo_nb)
+
+tabela_glm <- data.frame(
+  Variável = names(global_nb),
+  Estimativa_glm_nb = round(global_nb, 4)
+)
+
+#(tabela_glm)
+
+```
+
+
+```{r echo=FALSE}
+tabela_gwr <- as.data.frame(t(modelo_gwzinbr$descript_stats_gwr_param_estimates))
+tabela_gwr <- round(tabela_gwr, 4)
+tabela_gwr$Variável <- rownames(tabela_gwr)
+tabela_gwr <- tabela_gwr[, c("Variável", "Mean", "Min", "Max")]
+
+#kable(tabela_gwr)
+
+```
+
+## GWZINBR com largura de banda grande e glm.nb (ambos sem inflação de zeros)
+### Comparacao dos parametros estimados
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(knitr)
+library(kableExtra)
+alpha_glm <- 1 / modelo_nb$theta
+
+
+tabela_glm <- data.frame(
+  Variável = names(global_nb),
+  `GLM NB` = round(global_nb, 4),
+  stringsAsFactors = FALSE
+)
+
+
+# Estatísticas GWZINBR
+tabela_gwr <- as.data.frame(t(modelo_gwzinbr$descript_stats_gwr_param_estimates))
+tabela_gwr <- round(tabela_gwr, 4)
+tabela_gwr$Variável <- rownames(tabela_gwr)
+
+# Padroniza nomes
+tabela_gwr$Variável[tabela_gwr$Variável == "Intercept"] <- "(Intercept)"
+
+# Seleciona e renomeia colunas
+tabela_gwr <- tabela_gwr[, c("Variável", "Mean", "Min", "Max")]
+colnames(tabela_gwr) <- c("Variável", "Média", "Mínimo", "Máximo")
+
+tabela_gwr2 = tabela_gwr %>% filter(Variável != 'alpha')
+
+# Junta as tabelas
+tabela_final <- merge(tabela_glm, tabela_gwr2, by = "Variável", all = TRUE)
+
+# Gera a tabela com cabeçalho mesclado e espaçamento
+kable(tabela_final, align = 'lrrrr', booktabs = TRUE, caption = "Comparação das estimativas dos modelos GLM NB e GWZINBR") %>%
+  add_header_above(c(" " = 2, "GWZINBR" = 3)) %>%
+  column_spec(1, width = "5cm") %>%
+  column_spec(2, width = "2.5cm") %>%
+  column_spec(3:5, width = "3cm")
+
+alpha_gwr = tabela_gwr %>% filter(Variável == 'alpha')
+tabela_alpha<- cbind(data.frame(`GLM NB` = round(alpha_glm, 4)), data.frame('GWZINBR' = alpha_gwr[,2]))
+kable(tabela_alpha, align = "lr", booktabs = TRUE,
+      caption = "Estimativas do parâmetro de superdispersão (alpha)") %>%
+  kable_styling(full_width = FALSE)
+
+```
+ 
+## zeroinfl (glm com inflação de zeros)
+### Utiizando pacote zeroinfl da library pscl
+#### Comparando modelo com e sem parametros na parte inflacionada 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(pscl)
+library(knitr)
+library(kableExtra)
+
+modelo_zinb_const <- zeroinfl(
+  n_covid1 ~ Healthcare_access + Migration + Health_behavior + offset(ln_total)|1,
+  data = southkorea_covid19,
+  dist = "negbin"
+)
+
+modelo_zinb_covars <- zeroinfl(
+  n_covid1 ~ Healthcare_access + Migration + Health_behavior + offset(ln_total) |
+    Healthcare_access + Migration + Health_behavior,
+  data = southkorea_covid19,
+  dist = "negbin"
+)
+
+# Extrai os coeficientes dos dois modelos
+s_covars <- coef(summary(modelo_zinb_covars))
+s_const  <- coef(summary(modelo_zinb_const))
+
+# Constrói os data frames com os componentes "count" e "zero"
+df_count <- merge(
+  data.frame(
+    Parte = "Contagem",
+    Variável = rownames(s_const$count),
+    Estimate_Const = round(s_const$count[, "Estimate"], 4),
+    SE_Const = round(s_const$count[, "Std. Error"], 4),
+    P_Const = signif(s_const$count[, "Pr(>|z|)"], 3)
+  ),
+  data.frame(
+    Variável = rownames(s_covars$count),
+    Estimate_Covars = round(s_covars$count[, "Estimate"], 4),
+    SE_Covars = round(s_covars$count[, "Std. Error"], 4),
+    P_Covars = signif(s_covars$count[, "Pr(>|z|)"], 3)
+  ),
+  by = "Variável", all = TRUE
+)
+df_count$Parte <- ""
+
+df_count = df_count %>% filter(Variável != 'Log(theta)')
+
+df_zero <- merge(
+  data.frame(
+    Parte = "",
+    Variável = rownames(s_const$zero),
+    Estimate_Const = round(s_const$zero[, "Estimate"], 4),
+    SE_Const = round(s_const$zero[, "Std. Error"], 4),
+    P_Const = signif(s_const$zero[, "Pr(>|z|)"], 3)
+  ),
+  data.frame(
+    Variável = rownames(s_covars$zero),
+    Estimate_Covars = round(s_covars$zero[, "Estimate"], 4),
+    SE_Covars = round(s_covars$zero[, "Std. Error"], 4),
+    P_Covars = signif(s_covars$zero[, "Pr(>|z|)"], 3)
+  ),
+  by = "Variável", all = TRUE
+)
+df_zero$Parte <- ""
+
+# Junta os dois dataframes
+tabela <- rbind(df_count, df_zero)
+tabela <- tabela[, c("Parte", "Variável",
+                     "Estimate_Const", "SE_Const", "P_Const",
+                     "Estimate_Covars", "SE_Covars", "P_Covars")]
+
+# Gera a tabela formatada
+kable(tabela, align = "llrrrrrr", booktabs = TRUE,
+      caption = "Comparação dos coeficientes entre modelos ZINB com e sem covariáveis na parte de zeros") %>%
+  add_header_above(c(" " = 2,
+                     "ZINB (Zero Constante)" = 3,
+                     "ZINB (Zero com Covariáveis)" = 3)) %>%
+  kable_styling(full_width = FALSE) %>%
+  pack_rows("Parte de Contagem (Binomial Negativa)", 1, nrow(df_count)) %>%
+  pack_rows("Parte de Inflação de Zeros (Logístico)", nrow(df_count) + 1, nrow(tabela))
+
+# Estimação de alpha (com base no log(theta))
+alpha_const  <- 1 / (modelo_zinb_const$theta)
+alpha_covars <- 1 / (modelo_zinb_covars$theta)
+
+# Tabela separada para alpha
+df_alpha <- data.frame(
+  Modelo = c("ZINB (Zero Constante)", "ZINB (Zero com Covariáveis)"),
+  'alpha' = round(c(alpha_const, alpha_covars), 4)
+)
+
+kable(df_alpha, align = "lr", booktabs = TRUE,
+      caption = "Estimativas do parâmetro de superdispersão (alpha)") %>%
+  kable_styling(full_width = FALSE)
+
+```
+
+### Comparando GWZINBR (com banda grande) com e sem covariáveis na parte inflacionada
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+modelo_gwzinbr_global <- gwzinbr(
+  data = southkorea_covid19,
+  formula = n_covid1 ~ Healthcare_access + Migration + Health_behavior,
+  xvarinf = c("Healthcare_access", "Health_behavior", "Migration"),
+  long = "x",
+  lat = "y",
+  offset = "ln_total",
+  method = "fixed_g",
+  model = "zinb",
+  distancekm = TRUE,
+  h = 1e10,
+  force = TRUE
+)
+
+modelo_gwzinbr_0 <- gwzinbr(
+  data = southkorea_covid19,
+  formula = n_covid1 ~ Healthcare_access + Migration + Health_behavior,
+  #xvarinf = c("Healthcare_access", "Health_behavior", "Migration"),
+  long = "x",
+  lat = "y",
+  offset = "ln_total",
+  method = "fixed_g",
+  model = "zinb",
+  distancekm = TRUE,
+  h = 1e10,
+  force = TRUE
+)
+
+```
+
+#### Tabela de comparação 
+
+```{r}
+library(knitr)
+library(kableExtra)
+library(dplyr)
+
+# --------- PARTE DE CONTAGEM ---------
+# Estimativas modelo global
+gwr_global <- as.data.frame(t(modelo_gwzinbr_global$descript_stats_gwr_param_estimates))
+gwr_global$Variável <- rownames(gwr_global)
+
+# Estimativas modelo sem covariáveis na parte zero
+gwr_0 <- as.data.frame(t(modelo_gwzinbr_0$descript_stats_gwr_param_estimates))
+gwr_0$Variável <- rownames(gwr_0)
+
+# Renomeia colunas
+gwr_global <- gwr_global %>% select(Variável, Mean) %>%
+  rename(`GWZINBR (Zero com Covariáveis)` = Mean)
+
+gwr_0 <- gwr_0 %>% select(Variável, Mean) %>%
+  rename(`GWZINBR (Zero Constante)` = Mean)
+
+# Junta as duas tabelas
+ordem_variaveis <- c("Intercept", "Healthcare_access", "Migration", "Health_behavior","alpha")
+
+df_contagem <- merge(gwr_global, gwr_0, by = "Variável", all = TRUE)
+df_contagem <- df_contagem %>%
+  mutate(Variável = factor(Variável, levels = ordem_variaveis)) %>%
+  arrange(Variável)
+df_alpha <- df_contagem %>% filter(Variável == "alpha") # separa alpha
+df_contagem <- df_contagem %>% filter(Variável != "alpha")
+
+# --------- PARTE DE INFLAÇÃO ---------
+# Extrai estimativas da parte inflacionada dos dois modelos
+zinf_global <- modelo_gwzinbr_global$descript_stats_gwr_zero_infl_param_estimates[1, ]
+zinf_0 <- modelo_gwzinbr_0$descript_stats_gwr_zero_infl_param_estimates[1, ]
+
+# Cria dataframe para inflação de zeros
+df_zero <- data.frame(
+  Variável = names(zinf_global),
+  `GWZINBR (Zero com Covariáveis)` = round(as.numeric(zinf_global), 4),
+  `GWZINBR (Zero Constante)` = c(round(as.numeric(zinf_0), 4), rep(NA, length(zinf_global) - 1)),
+  stringsAsFactors = FALSE
+)
+# --------- Corrige nomes das colunas antes de unir ---------
+
+# Corrige os nomes de df_zero para bater com df_contagem
+colnames(df_zero) <- c("Variável", "GWZINBR (Zero com Covariáveis)", "GWZINBR (Zero Constante)")
+
+# Adiciona coluna Parte em cada dataframe
+df_contagem <- df_contagem %>%
+  mutate(Parte = "")
+
+df_zero <- df_zero %>%
+  mutate(Parte = "")
+
+# Junta as tabelas corretamente
+
+
+tabela_completa <- bind_rows(df_contagem, df_zero) %>%
+  select(Parte, Variável, `GWZINBR (Zero Constante)`, `GWZINBR (Zero com Covariáveis)`)
+
+# Remove rownames
+rownames(tabela_completa) <- NULL
+
+# --------- Exibe tabela final com formatação correta ---------
+
+colnames(tabela_completa) <- c("Variável", "Parte", "", "")
+
+# Gera a tabela
+kable(tabela_completa, align = "llrr", booktabs = TRUE,
+      caption = "Comparação dos coeficientes entre modelos GWZINBR com e sem covariáveis na parte de zeros") %>%
+  add_header_above(c(" " = 2,
+                     "GWZINBR (Zero Constante)" = 1,
+                     "GWZINBR (Zero com Covariáveis)" = 1)) %>%
+  kable_styling(full_width = FALSE) %>%
+  pack_rows("Parte de Contagem (Binomial Negativa)", 1, nrow(df_contagem)) %>%
+  pack_rows("Parte de Inflação de Zeros (Logístico)", nrow(df_contagem) + 1, nrow(tabela_completa))
+
+
+# --------- ALPHA EM TABELA SEPARADA ---------
+df_alpha <- df_alpha # remove coluna 'Variável'
+kable(df_alpha, align = "rr", booktabs = TRUE,
+      caption = "Estimativas do parâmetro de superdispersão (alpha)") %>%
+  add_header_above(c(" " = 1, "Modelos GWZINBR" = 2)) %>%
+  kable_styling(full_width = FALSE)
+
+
+```
+
+
+
+
+## Estimação do k
+
+<pre><code>
+dllike <- 1
+llike <- 0
+j <- 1
+while (abs(dllike) > 0.00001 & j <= 600){
+  ddpar <- 1
+  dpar <- 1
+  parold <- par
+  aux1 <- 1
+  aux2 <- 1
+  int <- 1
+
+  #Inicialização para modelos Poisson ou ZIP
+  if (model == "zip" | model == "poisson"){
+    alpha <- E^-6
+    par <- 1/alpha
+  }
+
+  #Estimação de par (k) para modelos com superdispersão
+  if(model == "zinb" | model == "negbin"){
+    if(par >= E^6){
+      par <- E^6
+      dpar <- 0
+      alpha <- 1/par
+      b <- bg
+      uj <- exp(x%*%b+Offset)
+      lambda <- lambdag
+      njl <- G%*%lambda
+      njl <- ifelse(njl>maxg, maxg, njl)
+      njl <- ifelse(njl<(-maxg),-maxg,njl)
+      zk <- 1/(1+exp(-njl)*(parg/(parg+uj))^parg)
+      zk <- ifelse(y>0, 0, zk)
+      if (any(lambda) == 0){
+        zk <- 0
+      }
+    }
+
+    #Estimação iterativa de par (k) via Newton-Raphson
+    while (abs(dpar)>0.000001 & aux2<200){
+      par <- ifelse(par < E^-10, E^-10, par)
+      gf <- sum(w*wt*(1-zk)*(digamma(par+y)-digamma(par)+log(par)+1-log(par+uj) - (par+y)/(par+uj)))
+      hess <- sum(w*wt*(1-zk)*(trigamma(par+y)-trigamma(par)+1/par-2/(par+uj)+(y+par)/(par+uj)^2))
+      hess <- ifelse(hess == 0, E^-23, hess)
+      par0 <- par
+      par <- as.vector(par0 - solve(hess)%*%gf)
+      dpar <- par - par0
+
+      #Se o valor explode, reinicia com par = E^6
+      if (par >= E^6){
+        par <- E^6
+        dpar <- 0
+        alpha <- 1/par
+        b <- bg
+        uj <- exp(x%*%b+Offset)
+        lambda <- lambdag
+        njl <- G%*%lambda
+        njl <- ifelse(njl>maxg, maxg, njl)
+        njl <- ifelse(njl<(-maxg),-maxg,njl)
+        zk <- 1/(1+exp(-njl)*(parg/(parg+uj))^parg)
+        zk <- ifelse(y>0, 0, zk)
+        if (any(lambda) == 0){
+          zk <- 0
+        }
+      }
+      aux2 <- aux2 + 1
+    }
+
+    #Se valor muito baixo, também redefine
+    if (par <= E^-5){
+      par <- E^6
+      b <- bg
+      uj <- exp(x%*%b+Offset)
+      lambda <- lambdag
+      njl <- G %*% lambda
+      njl <- ifelse(njl>maxg, maxg, njl)
+      njl <- ifelse(njl<(-maxg),-maxg,njl)
+      zk <- 1/(1+exp(-njl)*(parg/(parg+uj))^parg)
+      zk <- ifelse(y>0, 0, zk)
+      if (any(lambda) == 0){
+        zk <- 0
+      }
+    }
+
+    alpha <- 1/par
+  }
+
+</code></pre>
+
+## Estimação dos coeficientes do modelo
+
+<pre><code>
+#Estimação iterativa dos coeficientes b (beta) 
+  dev <- 0
+  ddev <- 1
+  nj <- x%*%b+Offset
+  nj <- ifelse(nj>700,700,nj)
+  nj <- ifelse(nj<(-700), -700, nj)
+  uj <- exp(nj)
+
+  while (abs(ddev)>0.000001 & aux1<100){
+    uj <- ifelse(uj>E^100, E^100, uj)
+
+    Ai <- as.vector((1-zk)*((uj/(1+alpha*uj) + (y-uj) * (alpha*uj/(1+2*alpha*uj+alpha^2*uj^2)))))
+    Ai <- ifelse(Ai <=0, E^-5, Ai)
+    uj <- ifelse(uj < E^-150, E^-150, uj)
+    denz <- (((uj/(1+alpha*uj)+(y-uj)*(alpha*uj/(1+2*alpha*uj+alpha^2*uj^2))))*(1+alpha*uj))
+    denz <- ifelse(denz == 0, E^-5, denz)
+    zj <- (nj+(y-uj)/denz)-Offset
+
+    # Estimação dos coeficientes b (beta)
+    if(det(t(x) %*% (w*Ai*x*wt)) == 0){
+      b <- matrix(0, nvar, 1)
+    }
+    else {
+      b <- solve(t(x)%*%(w*Ai*x*wt), tol=E^-60)%*%t(x)%*%(w*Ai*wt*zj)
+    }
+
+
+    nj <- x%*%b+Offset
+    nj <- ifelse(nj>700,700,nj)
+    nj <- ifelse(nj<(-700), -700, nj)
+    uj <- exp(nj)
+
+    # Atualiza verossimilhança (dev)
+    olddev <- dev
+    uj <- ifelse(uj > E^10, E^10, uj)
+    uj <- ifelse(uj == 0, E^10, uj)
+    if (par == E^6){
+      gamma1 <- (uj/(uj+par))^y*exp(-uj)
+    }
+    else{
+      gamma1 <- (uj/(uj+par))^y*(par/(uj+par))^par
+    }
+    gamma1 <- ifelse(gamma1 <=0, E^-10, gamma1)
+    dev <- sum((1-zk)*log(gamma1))
+    ddev <- dev - olddev
+    aux1 <- aux1 + 1
+  }
+
+  ddpar <- par-parold
+</code></pre>
+
+
+
+

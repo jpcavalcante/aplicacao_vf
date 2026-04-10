@@ -1,0 +1,4 @@
+"0","fit.model = modelo_pois"
+"0","attach(dados_modelo)"
+"0","source(""~/Documents/GitHub/dissertacao/analise/arquivos_auxiliares/envel_pois"")"
+"0",""

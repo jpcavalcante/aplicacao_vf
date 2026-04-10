@@ -1,0 +1,4 @@
+"0","library(lmtest)  # para lrtest
+"
+"2","G1;H1;Errorh in library(lmtest) : there is no package called ‘lmtest’
+g"

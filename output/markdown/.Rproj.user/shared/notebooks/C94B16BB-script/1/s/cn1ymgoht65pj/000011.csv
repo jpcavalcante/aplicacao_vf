@@ -1,0 +1,15 @@
+"0","# Mostrar resultado
+print(resultado_lrt)
+"
+"1","Likelihood ratio test
+
+Model 1: VF_2018_2022 ~ comodo + composta + mais5 + mulher_resp + igreja_mil_hab + 
+    offset(log_casos_esp_vf)
+Model 2: VF_2018_2022 ~ comodo + composta + mais5 + mulher_resp + igreja_mil_hab + 
+    offset(log_casos_esp_vf)
+  #Df   LogLik Df  Chisq Pr(>Chisq)    
+1   6 -1034.85                         
+2   7  -384.55  1 1300.6  < 2.2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"

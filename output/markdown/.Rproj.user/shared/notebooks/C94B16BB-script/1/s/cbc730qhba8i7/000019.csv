@@ -1,0 +1,68 @@
+"0","library(dplyr)"
+"0","library(knitr)"
+"0",""
+"0","# Defina as variáveis explicativas e a resposta"
+"0","variaveis <- c("
+"0","  ""alfab"", ""ate1mora"", ""mais5"", ""comodo"", ""degradada"","
+"0","  ""ambos"", ""plmenos1"", ""composta"", ""estend"", ""nuclear"", ""mulher_resp"","
+"0","  ""banheiro1"", ""rede_geral"", ""rendap"", ""igreja_mil_hab"", ""bares_mil_hab"""
+"0",")"
+"0",""
+"0","# Nomes legíveis para a tabela (opcional)"
+"0","labels <- c("
+"0","  ""Alfabetiz."", ""1 Morador"", ""5+ Moradores"", ""Hab. Coletiva"", ""Estrut. Deg."","
+"0","  ""Casal/Filh."", ""Casal/Resp."", ""Composta"", ""Estendida"", ""Nuclear"", ""Resp. Mulher"","
+"0","  ""Banheiro"", ""Rede Água"", ""Renda (%)"", ""Igrejas/1000 hab."", ""Bares/1000 hab."""
+"0",")"
+"0",""
+"0","# Crie a tabela de correlação"
+"0","cor_tab <- lapply(seq_along(variaveis), function(i) {"
+"0","  var <- variaveis[i]"
+"0","  # Pearson"
+"0","  pearson <- cor.test(dados$taxa_pad_vf, dados[[var]], method = ""pearson"")"
+"0","  # Spearman"
+"0","  spearman <- cor.test(dados$taxa_pad_vf, dados[[var]], method = ""spearman"")"
+"0","  data.frame("
+"0","    Variável = labels[i],"
+"0","    Pearson = round(pearson$estimate, 2),"
+"0","    Spearman = round(spearman$estimate, 2)"
+"0","  )"
+"0","}) %>% bind_rows()"
+"2","Warning :Cannot compute exact p-value with ties
+"
+"2","Warning :Cannot compute exact p-value with ties
+"
+"2","Warning :Cannot compute exact p-value with ties
+"
+"2","Warning :Cannot compute exact p-value with ties
+"
+"2","Warning :Cannot compute exact p-value with ties
+"
+"2","Warning :Cannot compute exact p-value with ties
+"
+"2","Warning :Cannot compute exact p-value with ties
+"
+"2","Warning :Cannot compute exact p-value with ties
+"
+"2","Warning :Cannot compute exact p-value with ties
+"
+"2","Warning :Cannot compute exact p-value with ties
+"
+"2","Warning :Cannot compute exact p-value with ties
+"
+"2","Warning :Cannot compute exact p-value with ties
+"
+"2","Warning :Cannot compute exact p-value with ties
+"
+"2","Warning :Cannot compute exact p-value with ties
+"
+"2","Warning :Cannot compute exact p-value with ties
+"
+"2","Warning :Cannot compute exact p-value with ties
+"
+"0","# Exiba a tabela em markdown"
+"0","kable(cor_tab, "
+"0","      format = ""markdown"", "
+"0","      booktabs = TRUE,"
+"0","      row.names = FALSE,"
+"0","      caption = ""Correlação entre a Taxa Padronizada de Violência Física e Variáveis Explicativas (Pearson e Spearman)"")"

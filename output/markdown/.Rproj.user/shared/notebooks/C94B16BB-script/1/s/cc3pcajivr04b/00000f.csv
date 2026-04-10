@@ -1,0 +1,8 @@
+"0","fit.model = modelo_nb"
+"0","attach(dados_modelo)"
+"0",""
+"0","# Caminho de saída"
+"0","output_file <- file.path(output_dir, ""envelope_negbin.png"")"
+"0",""
+"0","png(output_file, width = 800, height = 800, res = 150)"
+"0","source(""~/Documents/GitHub/dissertacao/analise/arquivos_auxiliares/envel_nbin"")"

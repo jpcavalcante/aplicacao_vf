@@ -1,0 +1,67 @@
+"0","modelo_gwr_2
+"
+"1","   ***********************************************************************
+   *                       Package   GWmodel                             *
+   ***********************************************************************
+"
+"1","   Program starts at: 2025-08-02 20:55:39.058604 
+   Call:
+   ggwr.basic(formula = Y ~ X_mbldd + X_prv_m + offset(log(E)), 
+    data = dados_sp, bw = bw_otimo_2, family = ""poisson"", kernel = ""bisquare"", 
+    adaptive = TRUE, dMat = DM)
+
+   Dependent (y) variable:  Y
+   Independent variables:  X_mbldd X_prv_m E
+   Number of data points: 96
+   Used family: poisson
+   ***********************************************************************
+   *              Results of Generalized linear Regression               *
+   ***********************************************************************
+
+Call:
+NULL
+
+Coefficients:
+            Estimate Std. Error  z value Pr(>|z|)    
+Intercept  8.1736853  0.0240334  340.097   <2e-16 ***
+X_mbldd   -0.0965459  0.0009149 -105.525   <2e-16 ***
+X_prv_m    0.0043261  0.0004912    8.808   <2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for poisson family taken to be 1)
+
+    Null deviance: 40319  on 95  degrees of freedom
+Residual deviance: 15681  on 93  degrees of freedom
+AIC: 15687
+
+Number of Fisher Scoring iterations: 5
+
+
+ AICc:  15686.99
+ Pseudo R-square value:  0.611081
+   ***********************************************************************
+   *          Results of Geographically Weighted Regression              *
+   ***********************************************************************
+
+   *********************Model calibration information*********************
+   Kernel function: bisquare 
+   Adaptive bandwidth: 24 (number of nearest neighbours)
+   Regression points: the same locations as observations are used.
+   Distance metric: A distance matrix is specified for this model calibration.
+
+   ************Summary of Generalized GWR coefficient estimates:**********
+                  Min.   1st Qu.    Median   3rd Qu.    Max.
+   Intercept  5.745019  9.137202  9.924324 11.234266 16.4496
+   X_mbldd   -0.152354 -0.085229 -0.058379 -0.028788  0.0643
+   X_prv_m   -0.138025 -0.063881 -0.033427 -0.018288  0.0373
+   ************************Diagnostic information*************************
+   Number of data points: 96 
+   GW Deviance: 7204.355 
+   AIC : 7257.622 
+   AICc : 7279.153 
+   Pseudo R-square value:  0.8213151 
+
+   ***********************************************************************
+   Program stops at: 2025-08-02 20:55:39.124342 
+"
