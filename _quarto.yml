@@ -1,0 +1,8 @@
+project:
+  output-dir: docs
+
+execute:
+  warning: false
+  message: false
+  cache: true
+  cache-path: _cache/

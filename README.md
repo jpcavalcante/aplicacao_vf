@@ -1,457 +1,175 @@
-## ⚙️ Documentação Detalhada do Script
+# Análise Espacial de Violência Física contra Crianças em São Paulo (2018–2022)
 
-Esta seção descreve, de forma detalhada, cada etapa do script `script_mestrado.Rmd`, explicando o objetivo, funcionamento e papel de cada bloco dentro da análise.
+Código e dados da dissertação de mestrado sobre a distribuição espacial de casos
+notificados de violência física contra crianças de 0 a 9 anos nos 96 distritos
+administrativos do Município de São Paulo.
 
----
-
-# 🧩 1. Inicialização do Ambiente
-
-### 📌 Objetivo
-
-Preparar o ambiente de trabalho, carregando bibliotecas necessárias para manipulação de dados, análise estatística e modelagem espacial.
-
-### 🔍 O que é feito:
-
-* Carregamento de pacotes para:
-
-  * Manipulação de dados (`tidyverse`)
-  * Leitura de arquivos (`readxl`, `openxlsx`)
-  * Visualização (`ggplot2`, `corrplot`)
-  * Modelagem estatística (`MASS`, `car`, `robustbase`)
-  * Dados espaciais (`sf`, `spdep`, `GWmodel`, `mgwnbr`)
-  * Relatórios (`knitr`, `kableExtra`)
-
-### 💡 Interpretação
-
-Este bloco garante que todas as dependências estejam disponíveis para execução do pipeline completo. A diversidade de pacotes reflete a natureza multidisciplinar da análise (estatística + geografia + visualização).
+A análise combina modelagem de contagens com dependência espacial por meio de
+**Regressão Geograficamente Ponderada com resposta Binomial Negativa (GWR-NB)**,
+implementada pelo pacote [`gwzinbr`](https://github.com/douglasmesquita/gwzinbr).
 
 ---
 
-# 📥 2. Importação das Bases de Dados
+## Estrutura do repositório
 
-### 📌 Objetivo
-
-Carregar os dados brutos necessários para a análise.
-
-### 🔍 O que é feito:
-
-* Leitura de arquivos Excel contendo:
-
-  * Indicadores socioeconômicos
-  * Dados populacionais
-  * Registros de violência
-* Importação de arquivos geográficos (shapefiles)
-
-### 💡 Interpretação
-
-Esta etapa centraliza todas as fontes de informação utilizadas no estudo. A combinação de dados tabulares com dados espaciais é fundamental para permitir análises georreferenciadas.
+```
+aplicacao_vf/
+├── index.qmd                ← documento Quarto (site interativo)
+├── _quarto.yml              ← configuração do projeto Quarto
+├── preparar_dados.R         ← roda uma vez: consolida os dados em .gpkg
+├── script_mestrado.R        ← análise completa em R puro
+├── _cache/                  ← cache do Quarto (modelos pesados, commitar)
+├── docs/                    ← site gerado pelo Quarto (GitHub Pages serve daqui)
+├── dados/
+│   ├── base_mestrado.gpkg   ← base consolidada (gerada por preparar_dados.R)
+│   └── ...                  ← arquivos brutos originais
+└── output/
+    └── plots_output/        ← figuras geradas pela análise
+```
 
 ---
 
-# 🧹 3. Tratamento e Limpeza dos Dados
+## Aplicação interativa (GitHub Pages)
 
-### 📌 Objetivo
+O documento `index.qmd` renderiza um site com todo o código, outputs e figuras
+visível em:
 
-Garantir consistência e compatibilidade entre as diferentes bases de dados.
+```
+https://<seu-usuario>.github.io/<nome-do-repo>/
+```
 
-### 🔍 O que é feito:
+### Publicar no GitHub Pages (uma vez)
 
-* Padronização de nomes de distritos
-* Remoção de acentos e caracteres especiais
-* Ajustes de encoding
-* Tratamento de valores ausentes
-* Conversão de tipos de variáveis
+```bash
+# 1. Instale o Quarto: https://quarto.org/docs/get-started/
+# 2. No terminal, na pasta do projeto:
+quarto render index.qmd
 
-### 💡 Interpretação
+# 3. Commite a pasta docs/ gerada
+git add docs/ _cache/
+git commit -m "render quarto site"
+git push
 
-Essa etapa é crítica, pois inconsistências nos identificadores geográficos podem comprometer completamente a análise espacial. A padronização garante que os merges posteriores sejam corretos.
+# 4. No GitHub: Settings → Pages → Source: main branch, /docs folder → Save
+```
 
----
-
-# 🔗 4. Integração das Bases
-
-### 📌 Objetivo
-
-Unificar todas as bases em um único dataset analítico.
-
-### 🔍 O que é feito:
-
-* Junção (join) entre:
-
-  * Dados socioeconômicos
-  * Dados de violência
-  * Dados populacionais
-  * Dados espaciais
-
-### 💡 Interpretação
-
-Aqui é construída a base final que será utilizada nos modelos. Cada linha representa uma unidade espacial (ex: distrito), com todas as variáveis necessárias para análise.
+O site fica disponível em ~1 minuto. Atualizações: repita `quarto render` + commit.
 
 ---
 
-# 🧮 5. Criação de Variáveis Derivadas
+## Como reproduzir
 
-### 📌 Objetivo
+### 1. Pré-requisitos
 
-Gerar novas variáveis que melhor representam o fenômeno estudado.
+```r
+install.packages(c(
+  "tidyverse", "sf", "spdep", "GWmodel", "MASS", "robustbase",
+  "car", "lmtest", "corrplot", "ggspatial", "readxl", "openxlsx",
+  "writexl", "knitr", "kableExtra", "gridExtra"
+))
 
-### 🔍 O que é feito:
+# Pacote gwzinbr (não está no CRAN)
+devtools::install_github("douglasmesquita/gwzinbr")
+```
 
-* Cálculo de taxas (ex: violência por população)
-* Transformações de variáveis
-* Criação de indicadores compostos
+### 2. Preparar os dados (uma vez)
 
-### 💡 Interpretação
+```r
+setwd("caminho/para/aplicacao_vf")
+source("preparar_dados.R")
+```
 
-Essas variáveis tornam a análise mais robusta, permitindo comparabilidade entre regiões com diferentes tamanhos populacionais e características distintas.
+Isso cria `dados/base_mestrado.gpkg` — um único arquivo com geometria e
+todas as variáveis. Os arquivos brutos podem ser mantidos ou removidos.
 
----
+### 3. Rodar a análise
 
-# 🗺️ 6. Construção do Objeto Espacial
-
-### 📌 Objetivo
-
-Preparar os dados para análise espacial.
-
-### 🔍 O que é feito:
-
-* Conversão dos dados para objetos do tipo `sf`
-* Associação entre dados tabulares e geometria
-* Validação das geometrias
-
-### 💡 Interpretação
-
-Esse passo é essencial para habilitar operações espaciais e modelagens geograficamente ponderadas. Sem ele, não seria possível explorar a dimensão espacial do problema.
+```r
+source("script_mestrado.R")
+```
 
 ---
 
-# 📊 7. Análise Exploratória dos Dados
+## Variável resposta
 
-### 📌 Objetivo
+**Taxa de Incidência Padronizada (TIP)** de violência física, calculada pela
+padronização indireta usando como referência a distribuição etária e de sexo
+da cidade de São Paulo no período 2018–2022.
 
-Compreender a distribuição e relações entre as variáveis.
-
-### 🔍 O que é feito:
-
-* Estatísticas descritivas
-* Visualizações gráficas
-* Matriz de correlação
-* Identificação de padrões iniciais
-
-### 💡 Interpretação
-
-Essa etapa permite identificar tendências, outliers e possíveis relações entre variáveis, orientando a escolha dos modelos posteriores.
+| | |
+|---|---|
+| ![Casos notificados](output/plots_output/mapa_vf_2018_2022.png) | ![Taxa padronizada](output/plots_output/mapa_taxa_padronizada_vf_2018_2022.png) |
+| Contagem de casos (2018–2022) | Taxa de Incidência Padronizada (TIP) |
 
 ---
 
-# ⚠️ 8. Diagnóstico de Multicolinearidade
+## Autocorrelação espacial — LISA
 
-### 📌 Objetivo
+Análise Local de Moran (LISA) aplicada à TIP, identificando clusters
+espacialmente significativos de alta e baixa incidência.
 
-Evitar problemas de instabilidade nos modelos.
-
-### 🔍 O que é feito:
-
-* Cálculo do VIF (Variance Inflation Factor)
-* Avaliação de correlações entre variáveis explicativas
-
-### 💡 Interpretação
-
-Variáveis altamente correlacionadas podem distorcer os coeficientes dos modelos. Essa etapa garante maior confiabilidade nas estimativas.
+![Mapa LISA – TIP](output/plots_output/mapa_lisa_tx_pad.png)
 
 ---
 
-# 📈 9. Ajuste de Modelos Globais
+## Variáveis explicativas
 
-### 📌 Objetivo
+Variáveis socioeconômicas e demográficas do Censo 2022, além de densidade
+de estabelecimentos religiosos, construídas ao nível de distrito.
 
-Estabelecer uma referência inicial para análise.
-
-### 🔍 O que é feito:
-
-* Ajuste de modelos:
-
-  * Poisson
-  * Binomial Negativa
-* Avaliação de:
-
-  * Significância dos coeficientes
-  * Qualidade do ajuste
-
-### 💡 Interpretação
-
-Os modelos globais assumem que as relações são constantes no espaço. Eles servem como baseline para comparação com modelos espaciais mais sofisticados.
+![Matriz de correlação](output/plots_output/matriz_correlacao_variaveis.png)
 
 ---
 
-# ⚖️ 10. Avaliação de Sobredispersão
+## Modelos ajustados
 
-### 📌 Objetivo
+### Modelos globais (referência)
 
-Verificar adequação do modelo de Poisson.
+| Modelo | AICc | Pseudo R² |
+|--------|------|-----------|
+| Poisson | — | — |
+| Binomial Negativa | — | — |
 
-### 🔍 O que é feito:
+> Preencha com os valores gerados pelo `script_mestrado.R`.
 
-* Comparação entre média e variância
-* Testes estatísticos para sobredispersão
+Análise de resíduos dos modelos globais:
 
-### 💡 Interpretação
+| | |
+|---|---|
+| ![Envelope Poisson](output/plots_output/envelope_poisson.png) | ![Envelope NB](output/plots_output/envelope_negbin.png) |
+| Envelope simulado — Poisson | Envelope simulado — Binomial Negativa |
 
-A presença de sobredispersão justifica o uso da regressão binomial negativa, que é mais flexível para dados de contagem com variabilidade elevada.
+### GWR — Binomial Negativa (modelo final)
 
----
+Coeficientes locais estimados para cada distrito, mantendo apenas as
+estimativas significativas a 10%:
 
+| | |
+|---|---|
+| ![comodo](output/plots_output/mapa_param_gwr_bn_comodo.png) | ![composta](output/plots_output/mapa_param_gwr_bn_composta.png) |
+| Hab. Coletiva (*comodo*) | Família composta (*composta*) |
 
-# 🌍 11. Construção da Estrutura de Dependência Espacial
+| | |
+|---|---|
+| ![mais5](output/plots_output/mapa_param_gwr_bn_mais5.png) | ![mulher_resp](output/plots_output/mapa_param_gwr_bn_mulher_resp.png) |
+| 5+ Moradores (*mais5*) | Responsável mulher (*mulher_resp*) |
 
-### 📌 Objetivo
-
-Capturar a relação espacial entre as unidades geográficas (ex: distritos), permitindo modelar dependência espacial.
-
-### 🔍 O que é feito:
-
-* Definição da matriz de vizinhança espacial
-* Cálculo de pesos espaciais (ex: distância ou contiguidade)
-* Padronização da matriz de pesos
-
-### 💡 Interpretação
-
-Esse bloco define como as regiões "interagem" entre si. A escolha da estrutura de vizinhança é crucial, pois influencia diretamente os resultados dos modelos espaciais.
-
-Uma matriz mal especificada pode gerar:
-
-* Falsos padrões espaciais
-* Estimativas enviesadas
+![Resíduos GWR-NB](output/plots_output/mapa_residuos_gwr_negbin.png)
 
 ---
 
-# 📡 12. Testes de Dependência Espacial
+## Dados
 
-### 📌 Objetivo
-
-Verificar se existe autocorrelação espacial nos dados.
-
-### 🔍 O que é feito:
-
-* Cálculo de estatísticas como Moran’s I
-* Testes de significância
-
-### 💡 Interpretação
-
-Se houver autocorrelação espacial significativa, isso indica que:
-
-* Regiões próximas apresentam comportamentos semelhantes
-* Modelos tradicionais (independentes) são inadequados
-
-Esse resultado justifica o uso de modelos espaciais como o GWR.
+| Fonte | Descrição |
+|-------|-----------|
+| SINAN/SVS | Notificações de violência contra crianças 2018–2022 |
+| IBGE — Censo 2022 | Variáveis socioeconômicas e demográficas por distrito |
+| Prefeitura de SP | Shapefile dos distritos administrativos |
+| OSM / SEADE | Pontos de igrejas e bares por distrito |
 
 ---
 
-# 📍 13. Seleção de Bandwidth
+## Referências principais
 
-### 📌 Objetivo
-
-Determinar o grau de influência espacial no modelo local.
-
-### 🔍 O que é feito:
-
-* Seleção automática de bandwidth
-* Uso de critérios como AIC ou validação cruzada
-
-### 💡 Interpretação
-
-O bandwidth controla o equilíbrio entre:
-
-* 🔵 Modelos muito locais (alta variabilidade)
-* 🔴 Modelos muito suaves (perda de informação local)
-
-Esse é um dos parâmetros mais importantes do GWR.
-
----
-
-# 🧠 14. Ajuste do Modelo Geograficamente Ponderado (GWR / GWZINBR)
-
-### 📌 Objetivo
-
-Modelar relações espaciais variáveis entre as variáveis explicativas e a variável resposta.
-
-### 🔍 O que é feito:
-
-* Ajuste do modelo:
-
-  * Geographically Weighted Regression (GWR)
-  * Versão com distribuição binomial negativa
-  * Possivelmente versão inflacionada de zeros (GWZINBR)
-* Estimação de coeficientes locais para cada unidade espacial
-
-### 💡 Interpretação
-
-Diferente dos modelos globais, aqui cada região possui seu próprio conjunto de coeficientes.
-
-Isso permite identificar:
-
-* Onde uma variável é relevante
-* Onde ela não tem efeito
-* Onde o efeito muda de sinal
-
-Esse é o principal diferencial metodológico do trabalho.
-
----
-
-# 📊 15. Extração dos Resultados Locais
-
-### 📌 Objetivo
-
-Organizar os resultados do modelo para análise e visualização.
-
-### 🔍 O que é feito:
-
-* Extração dos coeficientes locais
-* Cálculo de estatísticas associadas
-* Organização em dataframes
-
-### 💡 Interpretação
-
-Essa etapa transforma o output bruto do modelo em informações interpretáveis, permitindo análises posteriores e geração de mapas.
-
----
-
-# 🗺️ 16. Geração de Mapas Temáticos
-
-### 📌 Objetivo
-
-Visualizar espacialmente os resultados obtidos.
-
-### 🔍 O que é feito:
-
-* Criação de mapas para:
-
-  * Variáveis explicativas
-  * Variável resposta
-  * Coeficientes locais
-* Uso de `ggplot2` com geometria espacial (`geom_sf`)
-
-### 💡 Interpretação
-
-Os mapas são fundamentais para:
-
-* Identificar padrões espaciais
-* Detectar clusters
-* Comunicar resultados de forma intuitiva
-
-Eles transformam resultados numéricos em insights visuais.
-
----
-
-# 🎨 17. Personalização das Visualizações
-
-### 📌 Objetivo
-
-Melhorar a clareza e estética dos gráficos.
-
-### 🔍 O que é feito:
-
-* Ajuste de escalas de cor
-* Inclusão de legendas
-* Uso de rótulos e títulos descritivos
-
-### 💡 Interpretação
-
-Uma boa visualização não é apenas estética — ela é essencial para a interpretação correta dos resultados, especialmente em análises espaciais.
-
----
-
-# 📈 18. Avaliação do Modelo Espacial
-
-### 📌 Objetivo
-
-Verificar a qualidade e robustez do modelo ajustado.
-
-### 🔍 O que é feito:
-
-* Análise de métricas como:
-
-  * AIC
-  * Deviance
-* Comparação com modelos globais
-* Avaliação de resíduos
-
-### 💡 Interpretação
-
-Essa etapa valida o ganho de performance do modelo espacial em relação aos modelos tradicionais.
-
-Em geral, espera-se:
-
-* Melhor ajuste
-* Redução de erros
-* Melhor captura de padrões locais
-
----
-
-# 🔬 19. Análise dos Resíduos
-
-### 📌 Objetivo
-
-Verificar se o modelo capturou adequadamente a estrutura dos dados.
-
-### 🔍 O que é feito:
-
-* Análise da distribuição dos resíduos
-* Verificação de autocorrelação residual
-* Identificação de padrões não explicados
-
-### 💡 Interpretação
-
-Resíduos com padrão espacial indicam que ainda há estrutura não capturada pelo modelo.
-
-Idealmente, os resíduos devem:
-
-* Ser aleatórios
-* Não apresentar autocorrelação
-
----
-
-# 🧾 20. Consolidação dos Resultados
-
-### 📌 Objetivo
-
-Organizar os outputs finais para interpretação e apresentação.
-
-### 🔍 O que é feito:
-
-* Criação de tabelas resumo
-* Exportação de resultados
-* Preparação para inclusão em relatórios
-
-### 💡 Interpretação
-
-Esse bloco final transforma a análise em produto final, pronto para:
-
-* Dissertação
-* Apresentações
-* Publicações
-
----
-
-# 🔁 21. Reprodutibilidade da Análise
-
-### 📌 Objetivo
-
-Garantir que o estudo possa ser replicado.
-
-### 🔍 O que é feito:
-
-* Organização do código em RMarkdown
-* Uso de pipeline estruturado
-* Separação entre dados, código e outputs
-
-### 💡 Interpretação
-
-A reprodutibilidade é um dos pilares da pesquisa científica. Este projeto foi estruturado para permitir:
-
-* Execução completa por terceiros
-* Auditoria dos resultados
-* Extensão da análise
-
----
-
+- Fotheringham, A. S., Brunsdon, C., & Charlton, M. (2002). *Geographically Weighted Regression*. Wiley.
+- Mesquita, D., Ferreira, P. H. C., & Demetrio, C. G. B. (2023). *mgwnbr: Multiscale Geographically Weighted Negative Binomial Regression*.

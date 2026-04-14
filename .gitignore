@@ -1,0 +1,77 @@
+# =============================================================================
+# R / RStudio
+# =============================================================================
+
+# Workspace salvo automaticamente pelo RStudio (pode ser enorme)
+.RData
+.RDataTmp
+
+# Histórico de comandos
+.Rhistory
+.Rapp.history
+
+# Arquivos de projeto RStudio (cache interno, não é código)
+.Rproj.user/
+*.Rproj
+
+# Pacotes locais (se instalados na pasta do projeto)
+packrat/lib*/
+
+# =============================================================================
+# Outputs gerados — não versionar arquivos grandes de execução
+# =============================================================================
+
+# Cache interno do RStudio / knitr (centenas de MB)
+output/markdown/
+*_files/
+
+# =============================================================================
+# Quarto
+# =============================================================================
+
+# Cache do Quarto/knitr (MANTER no git para evitar re-executar modelos GWR)
+# Se o cache ficar grande demais (> 500 MB), descomente a linha abaixo:
+# _cache/
+
+# Pasta de output do Quarto (HTML gerado vai para docs/, não excluir)
+# docs/   ← NÃO excluir: é o que o GitHub Pages serve
+
+# Arquivos auxiliares gerados pelo Quarto
+/.quarto/
+
+# Arquivos temporários gerados por knitr/rmarkdown fora de docs/
+*_files/
+
+# Exceção: manter os PNGs dos resultados finais
+!output/plots_output/*.png
+
+# =============================================================================
+# macOS
+# =============================================================================
+.DS_Store
+.AppleDouble
+.LSOverride
+__MACOSX/
+
+# =============================================================================
+# Dados sensíveis / bases brutas opcionais
+# =============================================================================
+# Descomente as linhas abaixo se quiser excluir os arquivos brutos
+# (recomendado após confirmar que base_mestrado.gpkg está correto)
+#
+# dados/*.xlsx
+# dados/*.csv
+# dados/Distr_Adm_Munic_SP/
+# dados/bares_igrejas_por_distrito/
+# dados/novo_centr_msp_desloc/
+# dados/base_final.xlsx
+
+# GeoPackage gerado (opcional: manter no repo para reproducibilidade imediata)
+# dados/base_mestrado.gpkg
+
+# =============================================================================
+# Geral
+# =============================================================================
+*.log
+*.tmp
+Thumbs.db
