@@ -48,6 +48,8 @@ jobs:
 
       # 5. Instalar pacotes R
       - name: Install R packages
+        env:
+          GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
         run: |
           Rscript -e '
             pkgs <- c(
@@ -55,16 +57,32 @@ jobs:
               "MASS", "robustbase", "car", "lmtest",
               "corrplot", "ggspatial", "knitr", "kableExtra",
               "gridExtra", "scales", "readxl", "openxlsx",
-              "writexl", "stringi", "purrr", "broom", "remotes"
+              "writexl", "stringi", "purrr", "broom", "remotes", "pak"
             )
             missing <- pkgs[!pkgs %in% installed.packages()[,"Package"]]
             if (length(missing)) install.packages(missing, repos="https://cloud.r-project.org")
 
-            # mgwnbr e gwzinbr (GitHub)
-            if (!"mgwnbr" %in% installed.packages()[,"Package"])
-              remotes::install_github("douglasmesquita/mgwnbr", quiet = TRUE)
-            if (!"gwzinbr" %in% installed.packages()[,"Package"])
-              remotes::install_github("douglasmesquita/gwzinbr", quiet = TRUE)
+            # Pacotes do GitHub — usa GITHUB_PAT automaticamente via remotes
+            github_pkgs <- list(
+              mgwnbr  = "douglasmesquita/mgwnbr",
+              gwzinbr = "douglasmesquita/gwzinbr"
+            )
+            for (pkg in names(github_pkgs)) {
+              if (!pkg %in% installed.packages()[,"Package"]) {
+                message("Instalando ", pkg, " do GitHub...")
+                tryCatch(
+                  remotes::install_github(
+                    github_pkgs[[pkg]],
+                    auth_token = Sys.getenv("GITHUB_PAT"),
+                    quiet      = FALSE,
+                    upgrade    = "never"
+                  ),
+                  error = function(e) {
+                    warning("Nao foi possivel instalar ", pkg, ": ", conditionMessage(e))
+                  }
+                )
+              }
+            }
           '
 
       # 6. Instalar Quarto
