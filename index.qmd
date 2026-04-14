@@ -117,7 +117,7 @@ cat("Variáveis disponíveis:", ncol(dados) - 1, "(+ geometria)\n")
 # Distritos com zero casos (para anotação nos mapas)
 dados_zero <- dados %>%
   filter(VF_2018_2022 == 0) %>%
-  mutate(centroide = st_centroid(geometry),
+  mutate(centroide = st_centroid(st_geometry(.)),
          x = st_coordinates(centroide)[, 1],
          y = st_coordinates(centroide)[, 2])
 
@@ -140,7 +140,7 @@ ggplot(dados) +
 #| fig-cap: "Mapa de círculos proporcionais — casos notificados."
 
 dados_centr <- dados %>%
-  mutate(centroide = st_centroid(geometry),
+  mutate(centroide = st_centroid(st_geometry(.)),
          x = st_coordinates(centroide)[, 1],
          y = st_coordinates(centroide)[, 2])
 
