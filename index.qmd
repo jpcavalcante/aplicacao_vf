@@ -537,7 +537,12 @@ ggplot(dados) +
 
 fit.model <- modelo_pois
 attach(dados_modelo, warn.conflicts = FALSE)
-source("arquivos_auxiliares/envel_pois", local = TRUE)
+if (file.exists("arquivos_auxiliares/envel_pois")) {
+  source("arquivos_auxiliares/envel_pois", local = TRUE)
+} else {
+  message("Script de envelope não encontrado — exibindo imagem pré-gerada.")
+  knitr::include_graphics("output/plots_output/envelope_poisson.png")
+}
 detach(dados_modelo)
 ```
 
@@ -624,7 +629,12 @@ data.frame(
 
 fit.model <- modelo_nb
 attach(dados_modelo, warn.conflicts = FALSE)
-source("arquivos_auxiliares/envel_nbin", local = TRUE)
+if (file.exists("arquivos_auxiliares/envel_nbin")) {
+  source("arquivos_auxiliares/envel_nbin", local = TRUE)
+} else {
+  message("Script de envelope não encontrado — exibindo imagem pré-gerada.")
+  knitr::include_graphics("output/plots_output/envelope_negbin.png")
+}
 detach(dados_modelo)
 ```
 
