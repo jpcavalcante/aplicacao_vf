@@ -57,15 +57,31 @@ Este documento apresenta a análise espacial de casos notificados de **violênci
 física contra crianças de 0 a 9 anos** nos 96 distritos administrativos do
 Município de São Paulo, utilizando dados do período **2018–2022**.
 
+Os dados foram obtidos a partir das notificações de violência registradas no
+**Sistema de Informação de Agravos de Notificação (SINAN)**, disponibilizadas
+pela plataforma TABNET da Secretaria Municipal da Saúde de São Paulo.
+
+::: {.callout-important}
+## Nota sobre os dados
+Para simplificar a nomenclatura, utilizamos o termo "casos de violência física"
+para designar os registros disponíveis, que correspondem a **notificações de
+suspeita** de violência física. É importante destacar que esses dados **não
+representam casos confirmados**, mas sim as notificações registradas na base
+utilizada para análise.
+:::
+
 O objetivo é identificar fatores socioeconômicos e demográficos associados à
 incidência de violência e investigar se esses efeitos variam espacialmente —
 isto é, se a influência de cada variável é maior em certas regiões da cidade.
+Para isso, o modelo permite que os coeficientes de regressão variem entre
+os distritos, característica central dos modelos de Regressão Geograficamente
+Ponderada (GWR).
 
 **Estratégia analítica:**
 
 1.  Exploração da distribuição espacial da variável resposta
-2.  Cálculo da Taxa de Incidência Padronizada (TIP) por padronização indireta
-3.  Análise descritiva e de correlação das variáveis explicativas
+2.  Cálculo da Taxa de Incidência Padronizada (TIP) por padronização indireta estratificada
+3.  Análise descritiva e de correlação das variáveis explicativas (4 grupos)
 4.  Ajuste de modelos globais de contagem (Poisson e Binomial Negativa)
 5.  Diagnóstico de autocorrelação espacial residual (índice de Moran e LISA)
 6.  Regressão Geograficamente Ponderada com resposta Binomial Negativa
@@ -160,13 +176,30 @@ ggplot() +
 
 ## Taxa de Incidência Padronizada (TIP)
 
-A **padronização indireta** permite comparar a incidência entre distritos
-com diferentes composições etárias e de sexo. As taxas de referência são
-calculadas a partir da cidade como um todo.
+A **padronização indireta estratificada** permite comparar a incidência entre
+distritos com diferentes composições etárias e de sexo. Diferente da taxa
+padronizada comum, essa abordagem leva em conta as taxas específicas de cada
+grupo demográfico formado pelas combinações de faixa etária e sexo.
+
+Em cada um dos 96 distritos, calculamos o número esperado de casos aplicando
+as taxas específicas de cada estrato à população correspondente:
 
 $$
-\text{TIP}_i = \frac{\text{Casos observados}_i}{\text{Casos esperados}_i}
+E_i = \sum_{j} P_{ij} \times t_j
 $$
+
+onde $E_i$ é o total esperado de casos no distrito $i$, $P_{ij}$ é a
+população do grupo demográfico $j$ (faixa etária × sexo) no distrito $i$, e
+$t_j$ é a taxa específica para o grupo $j$, calculada para a cidade como um todo.
+A **TIP** é então calculada como:
+
+$$
+\text{TIP}_i = \frac{O_i}{E_i}
+$$
+
+onde $O_i$ é o total de casos observados no distrito $i$. Valores acima de 1
+indicam incidência maior do que a esperada dada a composição demográfica do
+distrito.
 
 ### Cálculo
 
@@ -307,47 +340,149 @@ plot(moran_tip, main = "")
 
 ::: {.callout-important}
 ## Autocorrelação espacial confirmada
-O índice de Moran significativo indica que os casos **não se distribuem
-aleatoriamente** no espaço — distritos com alta incidência tendem a estar
-próximos a outros com alta incidência, justificando o uso de modelos
-com componente espacial.
+O índice de Moran para a TIP foi de **I = 0,312** (valor-p = 0,001), indicando
+que os casos **não se distribuem aleatoriamente** no espaço — distritos com alta
+incidência tendem a estar próximos a outros com alta incidência. Esse resultado
+justifica o uso de modelos com componente espacial.
+:::
+
+---
+
+## Coordenadas Geográficas
+
+Para a análise GWR, adotou-se o **sistema de coordenadas UTM** (unidades em
+metros). Considerando que os dados estão agrupados por distrito, normalmente
+são utilizadas as coordenadas do centroide geométrico de cada distrito. No
+entanto, para aumentar a precisão — especialmente porque o modelo considera
+distâncias entre pontos —, **as coordenadas foram deslocadas para os pontos
+de maior densidade populacional** dentro de cada distrito.
+
+::: {.callout-note}
+## Por que usar pontos de densidade populaional?
+O centroide geométrico de um distrito pode estar em uma área de baixa
+ocupação (como parques, áreas industriais ou mananciais). O ponto de maior
+densidade populacional representa melhor onde de fato vivem as pessoas
+expostas ao risco, tornando o cálculo de distâncias entre vizinhanças mais
+preciso para o modelo GWR.
 :::
 
 ---
 
 ## Variáveis Explicativas
 
-### Descrição
+As variáveis explicativas foram agrupadas em quatro dimensões temáticas. As
+variáveis do Censo 2022 estão expressas em percentuais (0 a 100). Para igrejas
+e bares, adotou-se a contagem por mil habitantes. A renda foi padronizada pelo
+método mínimo-máximo: $\text{rendap} = 100 \times \frac{x - \min(x)}{\max(x) - \min(x)}$.
+
+### Quadro de variáveis
 
 ```{r}
 #| label: tabela-variaveis
-#| tbl-cap: "Variáveis socioeconômicas e demográficas utilizadas no modelo."
+#| tbl-cap: "Variáveis explicativas organizadas por grupos temáticos."
 #| cache: false
 
 data.frame(
-  Variável = c("alfab","ate1mora","mais5","comodo","degradada","mulher_resp",
-               "rede_geral","banheiro1","ambos","plmenos1","nuclear","estend",
-               "composta","rendap","igreja_mil_hab","bares_mil_hab"),
+  Grupo = c(
+    rep("G1 – Socioeconômico e Demográfico", 5),
+    rep("G2 – Estrutura Domiciliar", 2),
+    rep("G3 – Estrutura Familiar e Urbana", 5),
+    rep("G4 – Espaços de Convivência Social", 2)
+  ),
+  Variável = c(
+    "alfab","ate1mora","mais5","mulher_resp","rendap",
+    "banheiro1","comodo",
+    "ambos","plmenos1","composta","estendida","nuclear",
+    "igrejas","bares"
+  ),
   Descrição = c(
-    "Proporção de pessoas ≥ 15 anos alfabetizadas",
-    "Proporção de domicílios com apenas um morador",
-    "Proporção de domicílios com 5+ moradores",
-    "Proporção de domicílios em habitações coletivas (cortiços)",
-    "Proporção de domicílios com estrutura degradada/inacabada",
-    "Proporção de domicílios com responsável do sexo feminino",
-    "Proporção de domicílios com acesso à rede geral de água",
-    "Proporção de domicílios com banheiro exclusivo (chuveiro + vaso)",
-    "Proporção de domicílios: casal + filhos do casal",
-    "Proporção de domicílios: casal + ≥ 1 filho só do responsável",
-    "Proporção de domicílios do tipo nuclear",
-    "Proporção de domicílios do tipo estendido (outros parentes)",
-    "Proporção de domicílios do tipo composto (pessoas sem parentesco)",
+    "% pessoas ≥ 15 anos alfabetizadas",
+    "% domicílios com apenas 1 morador",
+    "% domicílios com 5 ou mais moradores",
+    "% domicílios cujo responsável é do sexo feminino",
     "Renda média distrital padronizada (0–100)",
-    "Igrejas por mil habitantes",
-    "Bares por mil habitantes"
+    "% domicílios com banheiro exclusivo (chuveiro + vaso sanitário)",
+    "% domicílios em habitações coletivas informais (cortiços, cômodos)",
+    "% domicílios: casal responsável + filhos apenas do casal",
+    "% domicílios: casal + ≥ 1 filho só do responsável ou cônjuge",
+    "% domicílios do tipo composto (com pessoas sem parentesco)",
+    "% domicílios do tipo estendido (inclui outros parentes)",
+    "% domicílios do tipo nuclear (responsável, cônjuge e filhos)",
+    "Número de igrejas por mil habitantes",
+    "Número de bares por mil habitantes"
   )
-) |> kable() |> kable_styling(full_width = FALSE, bootstrap_options = "striped")
+) |> kable() |> kable_styling(full_width = FALSE, bootstrap_options = "striped") |>
+  collapse_rows(columns = 1, valign = "top")
 ```
+
+### Grupo 1 — Características Socioeconômicas e Demográficas
+
+Maior concentração de renda padronizada e domicílios unifamiliares na região
+centro-sudoeste. Distritos periféricos exibem maior proporção de domicílios
+com cinco ou mais moradores, enquanto a taxa de alfabetização mantém-se
+elevada em praticamente todo o território.
+
+::: {layout-ncol=2}
+![alfab](output/plots_output/mapa_alfab.png){fig-alt="Mapa: alfabetização"}
+
+![ate1mora](output/plots_output/mapa_ate1mora.png){fig-alt="Mapa: 1 morador"}
+
+![mais5](output/plots_output/mapa_mais5.png){fig-alt="Mapa: 5+ moradores"}
+
+![mulher_resp](output/plots_output/mapa_mulher_resp.png){fig-alt="Mapa: resp. mulher"}
+
+![rendap](output/plots_output/mapa_rendap.png){fig-alt="Mapa: renda padronizada"}
+:::
+
+![Boxplot robusto — Grupo 1](output/plots_output/boxplot_robusto_grupo1.png)
+
+### Grupo 2 — Estrutura Domiciliar
+
+Maior concentração de domicílios com banheiro exclusivo nos distritos
+centrais. Habitações coletivas informais (`comodo`) são raras e com focos
+pontuais na periferia.
+
+::: {layout-ncol=2}
+![banheiro1](output/plots_output/mapa_banheiro1.png){fig-alt="Mapa: banheiro exclusivo"}
+
+![comodo](output/plots_output/mapa_comodo.png){fig-alt="Mapa: habitações coletivas"}
+:::
+
+![Boxplot robusto — Grupo 2](output/plots_output/boxplot_robusto_grupo2.png)
+
+### Grupo 3 — Estrutura Familiar e Urbana
+
+Predominância de domicílios nucleares em todo o município. Aumento de
+unidades do tipo compostas e estendidas em áreas periféricas, sugerindo maior
+complexidade familiar nessas regiões.
+
+::: {layout-ncol=2}
+![ambos](output/plots_output/mapa_ambos.png){fig-alt="Mapa: ambos"}
+
+![plmenos1](output/plots_output/mapa_plmenos1.png){fig-alt="Mapa: plmenos1"}
+
+![composta](output/plots_output/mapa_composta.png){fig-alt="Mapa: composta"}
+
+![estendida](output/plots_output/mapa_estend.png){fig-alt="Mapa: estendida"}
+
+![nuclear](output/plots_output/mapa_nuclear.png){fig-alt="Mapa: nuclear"}
+:::
+
+![Boxplot robusto — Grupo 3](output/plots_output/boxplot_robusto_grupo3.png)
+
+### Grupo 4 — Espaços de Convivência Social
+
+Maior densidade de igrejas por mil habitantes em Marsilac. Maior concentração
+de bares em Pinheiros e República (zonas urbanas centrais), indicando perfis
+distintos de sociabilidade espacial.
+
+::: {layout-ncol=2}
+![igrejas](output/plots_output/mapa_igreja_mil_hab.png){fig-alt="Mapa: igrejas por mil hab"}
+
+![bares](output/plots_output/mapa_bares_mil_hab.png){fig-alt="Mapa: bares por mil hab"}
+:::
+
+![Boxplot robusto — Grupo 4](output/plots_output/boxplot_robusto_grupo4.png)
 
 ### Transformação
 
@@ -396,6 +531,10 @@ st_drop_geometry(dados) %>%
 
 ### Correlação com a resposta
 
+A análise de correlação com a TIP é exploratória, pois os padrões podem
+apresentar variações locais. Ainda assim, ela orienta a pré-seleção de
+candidatas para os modelos de regressão.
+
 ```{r}
 #| label: cor-resposta
 #| tbl-cap: "Correlação de Pearson entre a TIP e cada variável explicativa."
@@ -414,6 +553,16 @@ lapply(seq_along(variaveis_descr), function(i) {
   arrange(desc(abs(`r.de.Pearson`))) |>
   kable() |> kable_styling(full_width = FALSE, bootstrap_options = "striped")
 ```
+
+::: {.callout-note}
+## Seleção de variáveis
+Com base nas correlações e no agrupamento hierárquico abaixo, foram
+selecionadas como candidatas aos modelos de regressão as variáveis:
+**`comodo`**, **`composta`**, **`mais5`**, **`mulher_resp`** e **`igrejas`**.
+A variável `comodo` não apresentou correlação significativa com a TIP
+(r = −0,025; p = 0,807), mas foi incluída por sua relevância teórica e
+por pertencer a um grupo sub-representado nas demais candidatas.
+:::
 
 ### Matriz de correlação entre variáveis explicativas
 
@@ -442,6 +591,16 @@ corrplot(mat_cor, method = "color", type = "upper", addCoef.col = "black",
 
 ### Dendrograma de correlação
 
+O método de agrupamento hierárquico de Ward foi aplicado utilizando como
+medida de dissimilaridade entre variáveis o valor de $1 - |\rho|$. O
+dendrograma sugere a formação de **5 grupos**:
+
+- **Grupo 1**: `igrejas`
+- **Grupo 2**: `rendap`, `mais5`, `estendida`, `banheiro1`, `ambos`, `alfab`, `plmenos1`
+- **Grupo 3**: `composta`, `ate1mora`, `nuclear`
+- **Grupo 4**: `comodo`
+- **Grupo 5**: `mulher_resp`, `bares`
+
 ```{r}
 #| label: dendrograma
 #| fig-cap: "Agrupamento hierárquico por dissimilaridade de Pearson (método Ward)."
@@ -460,9 +619,11 @@ plot(hclust(dissim, method = "ward.D"), main = "", xlab = "",
 
 ## Modelo de Poisson (global)
 
-O **Modelo de Poisson** serve como linha de base. Inclui o logaritmo do
-número de casos esperados como *offset*, corrigindo diferenças no tamanho
-da população em risco entre os distritos.
+Conforme recomendado para dados de contagem, ajustou-se inicialmente um
+**modelo de Poisson** com função de ligação logarítmica. A variável resposta
+é o número de casos de violência física; o logaritmo dos casos esperados
+($E_i$) é incluído como *offset*, corrigindo diferenças populacionais entre
+os distritos. As variáveis explicativas são as selecionadas na seção anterior.
 
 ```{r}
 #| label: poisson
@@ -527,11 +688,20 @@ ggplot(dados) +
   theme(axis.text = element_blank(), axis.ticks = element_blank())
 ```
 
+::: {.callout-warning}
+## Superdispersão detectada
+O desvio residual do modelo de Poisson foi de **1.595,07** com 90 graus de
+liberdade. Esse valor muito superior aos graus de liberdade indica
+**superdispersão** nos dados, sugerindo que o modelo de Poisson não é adequado
+para explicar a variabilidade da variável resposta. O envelope simulado abaixo
+confirma essa inadequação.
+:::
+
 ### Envelope simulado
 
 ```{r}
 #| label: envelope-pois
-#| fig-cap: "Envelope simulado — Poisson."
+#| fig-cap: "Envelope simulado — Poisson. Pontos fora do envelope indicam inadequação do modelo."
 #| cache: true
 #| fig-height: 5
 
@@ -550,9 +720,14 @@ detach(dados_modelo)
 
 ## Modelo Binomial Negativa (global)
 
-A **Binomial Negativa** adiciona um parâmetro de superdispersão θ, sendo
-mais adequada quando a variância supera a média (superdispersão), comum
-em dados de contagem de eventos raros.
+Diante da superdispersão detectada no modelo de Poisson, ajustou-se um
+**modelo Binomial Negativa**, que adiciona um parâmetro de superdispersão
+$\theta$ (ou $\alpha = 1/\theta$). Esse modelo é mais adequado quando a
+variância supera a média, situação comum em dados de contagem de eventos raros.
+
+A estimativa do parâmetro de superdispersão $\alpha$ esperada pela dissertação
+é de **4,19** (erro padrão = 0,7), confirmando a presença de superdispersão
+nos dados.
 
 ```{r}
 #| label: binomial-negativa
@@ -638,7 +813,11 @@ if (file.exists("arquivos_auxiliares/envel_nbin")) {
 detach(dados_modelo)
 ```
 
-### Resíduos e autocorrelação espacial
+### Resíduos — distribuição espacial
+
+![Resíduos padronizados do modelo Binomial Negativa por distrito](output/plots_output/mapa_residuos_negbin.png)
+
+### Autocorrelação espacial dos resíduos
 
 ```{r}
 #| label: moran-nb
@@ -660,11 +839,19 @@ data.frame(
 
 ::: {.callout-warning}
 ## Autocorrelação residual persistente
-Se o índice de Moran dos resíduos ainda for significativo, o modelo global
-**não captura** a estrutura espacial dos dados — motivando o uso de GWR.
+O índice de Moran dos resíduos da BN global foi de **I = 0,155** (p = 0,01),
+indicando autocorrelação espacial significativa. O modelo global **não captura**
+a estrutura espacial dos dados — o que motiva o uso de modelos geograficamente
+ponderados (GWR), que permitem que os coeficientes variem localmente.
 :::
 
-### Verificação de excesso de zeros
+### Excesso de zeros
+
+Para avaliar a necessidade de um modelo com **inflação de zeros** (ZINB),
+comparamos os zeros esperados pela Binomial Negativa com os observados.
+A proporção esperada foi de **1,51%** e a observada de **2,1%** — valores
+próximos, indicando que a Binomial Negativa já acomoda adequadamente a
+frequência de zeros, tornando desnecessário o uso de ZINB.
 
 ```{r}
 #| label: zeros-nb
@@ -684,9 +871,13 @@ data.frame(
 
 ## Análise de Autocorrelação Local — LISA
 
-O **LISA** (Local Indicators of Spatial Association) identifica clusters
-espaciais localmente significativos, distinguindo regiões de alta-alta
-(hot spots), baixa-baixa (cold spots) e outliers espaciais.
+O **LISA** (Local Indicators of Spatial Association) vai além do índice de
+Moran global, identificando clusters localmente significativos para cada
+distrito e distinguindo:
+
+- **High-High**: distrito e vizinhos com altos valores — *hot spots*
+- **Low-Low**: distrito e vizinhos com baixos valores — *cold spots*
+- **High-Low / Low-High**: outliers espaciais — transições abruptas de risco
 
 ```{r}
 #| label: lisa
@@ -724,13 +915,29 @@ ggplot(dados) +
   theme(axis.text = element_blank(), axis.ticks = element_blank())
 ```
 
+::: {.callout-note}
+## Interpretação do mapa LISA
+Os agrupamentos **High-High** se concentram em Itaim Paulista e São Miguel
+(Zona Leste), revelando polos de alto risco relativo. As áreas **Low-Low**
+indicam regiões menos vulneráveis. O aspecto mais relevante é a presença
+de uma **borda de transição**, onde um território High-High aparece adjacente
+a uma área Low-High — transição espacial pontual entre zonas de risco
+elevado e regiões vizinhas de menor intensidade. Essa heterogeneidade
+reforça as limitações de modelos com efeitos globais e motiva o uso de GWR.
+:::
+
 ---
 
 ## GWR — Regressão Geograficamente Ponderada (Binomial Negativa)
 
-O modelo **GWR-NB** estima um coeficiente por variável para **cada distrito**,
-revelando como a influência de cada fator varia pelo território. Utiliza o
-pacote [`gwzinbr`](https://github.com/douglasmesquita/gwzinbr).
+A partir das evidências de superdispersão e de autocorrelação espacial nos
+resíduos do modelo global, ajustou-se um **modelo GWNBR** (Geographically
+Weighted Negative Binomial Regression) utilizando o pacote
+[`gwzinbr`](https://github.com/douglasmesquita/gwzinbr).
+
+Em uma primeira análise, foram consideradas as mesmas covariáveis do modelo
+global. A variável `igrejas` não teve contribuição significativa para explicar
+os casos de violência em nenhum ponto do espaço e foi removida do modelo final.
 
 ### Preparação
 
@@ -748,9 +955,22 @@ for (var in c("comodo","plmenos1","composta","mais5","mulher_resp",
 
 ### Seleção da largura de banda
 
-A **largura de banda** (h) controla o grau de localidade do modelo.
-Bandas menores capturam mais heterogeneidade; bandas maiores aproximam-se
-do modelo global. O critério de seleção é AIC ou validação cruzada (CV).
+A **largura de banda** (h) controla o grau de localidade do modelo — bandas
+menores capturam mais heterogeneidade; bandas maiores aproximam-se do modelo
+global. A função `Golden()` realiza uma busca de seção áurea para encontrar
+o h que minimiza AIC ou validação cruzada (CV).
+
+Foram testadas 4 combinações de critério e tipo de vizinhança:
+
+| Método | Critério | h ótimo |
+|--------|----------|---------|
+| Adaptativa | CV | 12 |
+| **Adaptativa** | **AIC** | **62** |
+| Fixa | CV | 55.277,68 m |
+| Fixa | AIC | 12.573,32 m |
+
+Selecionou-se **adaptativa-AIC (h = 62)**, que equilibra viés e variância
+localmente. A convergência foi atingida em AIC ≈ 750.
 
 ::: {.callout-note collapse="true"}
 ## Código: busca da largura de banda ótima (Golden Section Search)
@@ -821,13 +1041,13 @@ Gráficos de convergência das larguras de banda selecionadas:
 
 modelo_negbin <- gwzinbr(
   data    = dados_modelo_bn,
-  formula = VF_2018_2022 ~ comodo + composta + mais5 + mulher_resp + igreja_mil_hab,
+  formula = VF_2018_2022 ~ comodo + composta + mais5 + mulher_resp,
   lat     = "lat_utm", long = "long_utm",
   offset  = "log_casos_esp_vf",
   method  = "adaptive_bsq",
   model   = "negbin",
   force   = TRUE, distancekm = FALSE,
-  h       = 12   # largura de banda selecionada por AIC adaptativo
+  h       = 62   # largura de banda selecionada por Golden Section Search (AIC adaptativo)
 )
 
 # Salvar para reutilização
@@ -860,25 +1080,73 @@ if (file.exists(modelo_negbin_path)) {
 
 ### Parâmetros estimados — mapas
 
-Estimativas locais dos coeficientes. Regiões em **cinza** = não significativas a 10%.
+Estimativas locais dos coeficientes para cada distrito. Regiões em **cinza** = estimativas não significativas a 10%.
 
-::: {layout-ncol=2}
-![Intercepto](output/plots_output/mapa_param_gwr_bn_Intercept.png)
+#### Hab. Coletiva (`comodo`)
 
-![Hab. Coletiva](output/plots_output/mapa_param_gwr_bn_comodo.png)
+![Estimativas locais — comodo](output/plots_output/mapa_param_gwr_bn_comodo.png)
 
-![Composta](output/plots_output/mapa_param_gwr_bn_composta.png)
+O parâmetro `comodo` apresenta **efeito positivo** nas zonas periféricas
+(exceto na Zona Leste), indicando que a maior presença de habitações coletivas
+informais está associada a maior incidência de violência nessas regiões.
+Medidas-resumo das estimativas locais: Média = 0,178; Mediana = 0,184;
+Mín = 0,108; Máx = 0,238.
 
-![5+ Moradores](output/plots_output/mapa_param_gwr_bn_mais5.png)
+#### Família Composta (`composta`)
 
-![Resp. Mulher](output/plots_output/mapa_param_gwr_bn_mulher_resp.png)
+![Estimativas locais — composta](output/plots_output/mapa_param_gwr_bn_composta.png)
 
-![Alpha (superdispersão)](output/plots_output/mapa_param_gwr_bn_alpha.png)
-:::
+O coeficiente da variável `composta` é **mais negativo na região oeste e
+noroeste**, sinalizando menor efeito (protetor) nesses distritos.
+Medidas-resumo: Média = −0,154; Mediana = −0,136; Mín = −0,388; Máx = 0,072.
+
+#### 5 ou mais Moradores (`mais5`)
+
+![Estimativas locais — mais5](output/plots_output/mapa_param_gwr_bn_mais5.png)
+
+O efeito positivo de `mais5` é especialmente pronunciado nas **periferias da
+Zona Leste**, onde domicílios com muitos moradores coincidem com maior
+incidência de violência.
+Medidas-resumo: Média = 0,445; Mediana = 0,411; Mín = 0,143; Máx = 0,830.
+
+#### Responsável Mulher (`mulher_resp`)
+
+![Estimativas locais — mulher_resp](output/plots_output/mapa_param_gwr_bn_mulher_resp.png)
+
+Embora `mulher_resp` não tenha sido significativa no modelo global, a análise
+local revela **coeficientes significativos em uma pequena região**, demonstrando
+como o GWR consegue captar variações espaciais que um modelo global simples
+não revela.
+Medidas-resumo: Média = 0,051; Mediana = 0,032; Mín = −0,077; Máx = 0,259.
+
+#### Parâmetro de Superdispersão ($\alpha$)
+
+![Estimativas locais do parâmetro α](output/plots_output/mapa_param_gwr_bn_alpha.png)
+
+Os valores mais elevados de $\alpha$ concentram-se nos distritos da **Zona
+Leste**, indicando maior variação não explicada pelo modelo nessas áreas —
+possivelmente devido a fatores locais não capturados pelas covariáveis.
+Medidas-resumo: Média = 0,128; Mediana = 0,079; Mín = 0,020; Máx = 0,384.
 
 ### Resíduos e diagnóstico espacial
 
 ![Distribuição espacial dos resíduos — GWR-NB](output/plots_output/mapa_residuos_gwr_negbin.png)
+
+::: {.callout-note}
+## Destaque: Itaim Paulista
+O distrito **Itaim Paulista** (Zona Leste) apresenta o resíduo mais elevado,
+evidenciado pela coloração mais intensa. Esse padrão pode estar relacionado
+à presença da *Casa de Isabel*, referência regional para notificações de
+violência infantil. Pelo seu papel como centro de atendimento, o distrito
+tende a concentrar registros, aumentando a discrepância entre casos observados
+e estimados pelo modelo.
+:::
+
+O índice de Moran dos resíduos do GWR-NB esperado é de **I = −0,039**
+(p = 0,787), indicando **ausência de autocorrelação espacial significativa**.
+Os resíduos estão distribuídos de forma aleatória no espaço, confirmando que
+o GWR conseguiu explicar adequadamente as variações locais — diferentemente
+do modelo global.
 
 ```{r}
 #| label: moran-gwr
@@ -909,6 +1177,20 @@ if (exists("modelo_negbin")) {
 
 - Mesquita, D., Ferreira, P. H. C., & Demetrio, C. G. B. (2023).
   *mgwnbr: Multiscale Geographically Weighted Negative Binomial Regression*.
-  R package.
+  R package. GitHub: douglasmesquita/gwzinbr.
 
-- IBGE (2023). *Censo Demográfico 2022: resultados do universo*.
+- McCullagh, P., & Nelder, J. A. (1989). *Generalized Linear Models*
+  (2nd ed.). Chapman and Hall.
+
+- Comber, A., Brunsdon, C., Charlton, M., et al. (2023). A route map for
+  successful applications of Geographically Weighted Regression.
+  *Geographical Analysis*, 55(3), 155–178.
+
+- Ward, J. H. (1963). Hierarchical grouping to optimize an objective
+  function. *Journal of the American Statistical Association*, 58(301), 236–244.
+
+- IBGE (2023). *Censo Demográfico 2022: resultados do universo*. Instituto
+  Brasileiro de Geografia e Estatística.
+
+- Secretaria Municipal da Saúde de São Paulo. *SINAN — Sistema de Informação
+  de Agravos de Notificação*. Plataforma TABNET/SMS-SP.
