@@ -23,10 +23,9 @@
 #   setwd("caminho/para/aplicacao_vf")
 #   source("script_mestrado.R")
 #
-# TEMPO ESTIMADO
-#   Seções 1–9  : ~5 min
-#   Seção 10.2  : ~2 h (buscas de largura de banda via Golden Section)
-#   Seção 10.3  : ~1 h (ajuste do modelo GWR-NB)
+# Versão do gwzinbr utilizada: 0.1.0 (CRAN, publicada em 2024-06-10)
+# Autores: Jéssica Vasconcelos, Juliana Rosa, Alan da Silva
+# install.packages("gwzinbr")
 #
 # AUTOR : José Cavalcante · 2025
 # =============================================================================
@@ -53,11 +52,13 @@ library(stringi)     # stri_trans_general() — remoção de diacríticos
 # 2. DIRETÓRIOS
 # =============================================================================
 
-dir_dados <- "dados"
-dir_aux   <- "arquivos_auxiliares"   # scripts de envelope simulado
-dir_cache <- "_cache"                # modelo GWR serializado
+dir_dados  <- "dados"
+dir_aux    <- "arquivos_auxiliares"   # scripts de envelope simulado
+dir_cache  <- "_cache"                # modelo GWR serializado
+dir_output <- "~/Documents/GitHub/dissertacao/analise/output/plots_output"
 
-if (!dir.exists(dir_cache)) dir.create(dir_cache)
+if (!dir.exists(dir_cache))  dir.create(dir_cache,  recursive = TRUE)
+if (!dir.exists(dir_output)) dir.create(dir_output, recursive = TRUE)
 
 
 # =============================================================================
@@ -83,36 +84,48 @@ distritos_sem_casos <- distritos %>% filter(VF_2018_2022 == 0)
 distritos_sem_casos[c("x", "y")] <- st_coordinates(st_centroid(distritos_sem_casos))
 
 # Mapa coroplético — contagem absoluta
-print(
-  ggplot(distritos) +
-    geom_sf(aes(fill = VF_2018_2022)) +
-    scale_fill_gradientn(
-      colours = c("white", "#2171b5", "#08306b"),
-      name    = "Casos",
-      oob     = squish
-    ) +
-    geom_text(data = distritos_sem_casos, aes(x = x, y = y),
-              label = "0", size = 2.8, color = "gray40") +
-    theme_minimal(base_size = 14) +
-    theme(axis.text = element_blank(), axis.ticks = element_blank(),
-          panel.grid = element_line(color = "grey90"))
-)
+p_mapa_vf <- ggplot(distritos) +
+  geom_sf(aes(fill = VF_2018_2022)) +
+  scale_fill_gradientn(
+    colours = c("white", "#2171b5", "#08306b"),
+    name    = "Casos notificados",
+    oob     = squish
+  ) +
+  geom_text(data = distritos_sem_casos, aes(x = x, y = y),
+            label = "*", size = 5, color = "black") +
+  theme_minimal(base_size = 14) +
+  labs(title = "", fill = "Casos notificados")
+print(p_mapa_vf)
+ggsave(file.path(dir_output, "mapa_vf_2018_2022.png"),
+       plot = p_mapa_vf, width = 9, height = 7, dpi = 150)
 
 # Mapa de círculos proporcionais
 centroides <- distritos
 centroides[c("x", "y")] <- st_coordinates(st_centroid(centroides))
 
-print(
-  ggplot() +
-    geom_sf(data = distritos, fill = "gray95", color = "grey50", linewidth = 0.25) +
-    geom_point(data = centroides, aes(x = x, y = y, size = VF_2018_2022),
-               color = "#2171b5", alpha = 0.8) +
-    scale_size(name = "Casos", range = c(0, 10)) +
-    annotation_scale(location = "br", width_hint = 0.25) +
-    theme_minimal() +
-    theme(axis.text = element_blank(), axis.ticks = element_blank(),
-          panel.grid = element_line(color = "grey90", linewidth = 0.2))
-)
+p_mapa_circ <- ggplot() +
+  geom_sf(data = distritos, fill = "gray95", color = "grey50", linewidth = 0.25,
+          alpha = 0.8) +
+  geom_point(data = centroides, aes(x = x, y = y, size = VF_2018_2022),
+             color = "#2171b5", alpha = 0.8) +
+  scale_size(
+    name   = "Casos notificados",
+    range  = c(0, 10),
+    limits = c(min(centroides$VF_2018_2022, na.rm = TRUE),
+               max(centroides$VF_2018_2022, na.rm = TRUE)),
+    breaks = pretty(range(centroides$VF_2018_2022, na.rm = TRUE), n = 4)
+  ) +
+  annotation_scale(location = "br", width_hint = 0.25,
+                   pad_x = unit(0.2, "cm"), pad_y = unit(0.2, "cm")) +
+  theme_minimal() +
+  theme(axis.title  = element_blank(),
+        axis.text   = element_blank(),
+        axis.ticks  = element_blank(),
+        panel.grid  = element_line(color = "grey90", linewidth = 0.2),
+        plot.title  = element_blank())
+print(p_mapa_circ)
+ggsave(file.path(dir_output, "mapa_vf_circulos.png"),
+       plot = p_mapa_circ, width = 9, height = 7, dpi = 150)
 
 
 # =============================================================================
@@ -149,21 +162,28 @@ distritos_utm <- st_transform(distritos, 31983)
 sem_casos_utm <- st_transform(distritos_sem_casos, 31983)
 sem_casos_utm[c("x", "y")] <- st_coordinates(st_centroid(sem_casos_utm))
 
-print(
-  ggplot(distritos_utm) +
-    geom_sf(aes(fill = tip), color = "grey70", linewidth = 0.2) +
-    scale_fill_gradientn(
-      colours = c("white", "#2171b5", "#08306b"),
-      limits  = c(0, 5), oob = squish, name = "TIP"
-    ) +
-    geom_text(data = sem_casos_utm, aes(x = x, y = y),
-              label = "*", size = 5, color = "black") +
-    annotation_scale(location = "br", width_hint = 0.25) +
-    theme_minimal(base_size = 14) +
-    theme(axis.text = element_blank(), axis.ticks = element_blank(),
-          panel.grid = element_line(color = "grey90", linewidth = 0.2),
-          legend.key.height = unit(1.5, "cm"))
-)
+p_tip <- ggplot(distritos_utm) +
+  geom_sf(aes(fill = tip), color = "grey70", linewidth = 0.2) +
+  scale_fill_gradientn(
+    colours = c("white", "#2171b5", "#08306b"),
+    limits  = c(0, 5), oob = squish, name = NULL
+  ) +
+  geom_text(data = sem_casos_utm, aes(x = x, y = y),
+            label = "*", size = 5, color = "black") +
+  annotation_scale(location = "br", width_hint = 0.25) +
+  theme_minimal(base_size = 14) +
+  theme(axis.title         = element_blank(),
+        axis.text          = element_blank(),
+        axis.ticks         = element_blank(),
+        panel.grid.major   = element_line(color = "grey90", linewidth = 0.2),
+        panel.grid.minor   = element_blank(),
+        legend.title       = element_blank(),
+        legend.key.height  = unit(1.5, "cm"),
+        legend.key.width   = unit(0.4, "cm"),
+        plot.title         = element_blank())
+print(p_tip)
+ggsave(file.path(dir_output, "mapa_taxa_padronizada_vf_2018_2022.png"),
+       plot = p_tip, width = 9, height = 7, dpi = 150)
 
 # Estatísticas descritivas da TIP
 print(summary(distritos$tip))
@@ -194,6 +214,9 @@ if (length(idx_outliers) > 0) {
   segments(rep(1, length(esquerda)), y_out[esquerda], rep(0.95, length(esquerda)), y_out[esquerda], col = "gray30")
   text(rep(0.95, length(esquerda)),  y_out[esquerda], labels = nomes_distritos[idx_outliers[esquerda]], pos = 2, cex = 0.8)
 }
+dev.copy(png, file.path(dir_output, "boxplot_robusto_taxa_padronizada.png"),
+         width = 900, height = 700, res = 150)
+dev.off()
 
 # Moran I global — TIP
 # I > 0 com p < 0,05: distritos próximos têm TIPs semelhantes → dependência
@@ -246,20 +269,23 @@ rotulos_descr <- vars_descr
 # Mapas de distribuição espacial por variável
 walk(vars_descr, function(v) {
   lim <- if (v %in% c("igrejas", "bares")) c(0, 12) else c(0, 100)
-  print(
-    ggplot(distritos) +
-      geom_sf(aes(fill = .data[[v]])) +
-      scale_fill_gradientn(
-        colors = c("#deebf7", "#9ecae1", "#3182bd", "#08519c"),
-        limits = lim, oob = squish
-      ) +
-      annotation_scale(location = "br", width_hint = 0.25) +
-      labs(title = v) +
-      theme_minimal() +
-      theme(panel.grid = element_line(color = "grey90", linewidth = 0.2),
-            legend.title = element_blank(),
-            axis.text = element_blank(), axis.ticks = element_blank())
-  )
+  p <- ggplot(distritos) +
+    geom_sf(aes(fill = .data[[v]])) +
+    scale_fill_gradientn(
+      colors = c("#deebf7", "#9ecae1", "#3182bd", "#08519c"),
+      limits = lim, oob = squish
+    ) +
+    annotation_scale(location = "br", width_hint = 0.25) +
+    labs(title = v) +
+    theme_minimal() +
+    theme(panel.grid   = element_line(color = "grey90", linewidth = 0.2),
+          legend.title = element_blank(),
+          axis.text    = element_blank(),
+          axis.ticks   = element_blank(),
+          plot.title   = element_text(hjust = 0.5, size = 14))
+  print(p)
+  ggsave(file.path(dir_output, paste0("mapa_", v, ".png")),
+         plot = p, width = 10, height = 7.5, dpi = 300)
 })
 
 # Estatísticas descritivas
@@ -315,9 +341,16 @@ boxplot_grupo <- function(vars, rotulos, ylim, ylab = "%") {
 }
 
 boxplot_grupo(grupos$grupo1, grupos$grupo1, ylim_pct)
+dev.copy(png, file.path(dir_output, "boxplot_robusto_grupo1.png"), width = 800, height = 900, res = 150); dev.off()
+
 boxplot_grupo(grupos$grupo2, grupos$grupo2, ylim_pct)
+dev.copy(png, file.path(dir_output, "boxplot_robusto_grupo2.png"), width = 800, height = 900, res = 150); dev.off()
+
 boxplot_grupo(grupos$grupo3, grupos$grupo3, ylim_pct)
+dev.copy(png, file.path(dir_output, "boxplot_robusto_grupo3.png"), width = 800, height = 900, res = 150); dev.off()
+
 boxplot_grupo(grupos$grupo4, grupos$grupo4, ylim_dens, ylab = "por mil hab.")
+dev.copy(png, file.path(dir_output, "boxplot_robusto_grupo4.png"), width = 800, height = 900, res = 150); dev.off()
 
 # Correlação de Pearson com a TIP
 cor_tip <- lapply(seq_along(vars_descr), function(i) {
@@ -339,12 +372,18 @@ corrplot(mat_cor, method = "color", type = "upper", addCoef.col = "black",
          tl.col = "black", tl.srt = 45, tl.cex = 0.9, number.cex = 0.7,
          col = colorRampPalette(c("#08306b", "white", "#b30000"))(200),
          mar = c(0, 0, 2, 0))
+dev.copy(png, file.path(dir_output, "matriz_correlacao_variaveis.png"),
+         width = 1800, height = 1500, res = 180)
+dev.off()
 
 # Dendrograma de correlação (dissimilaridade = 1 − |ρ|, método Ward)
 # Variáveis no mesmo cluster tendem a ser redundantes para os modelos.
 dissim <- as.dist(1 - abs(mat_cor))
 plot(hclust(dissim, method = "ward.D"), main = "", xlab = "", sub = "",
      cex.axis = 0.9, cex.lab = 1.1)
+dev.copy(png, file.path(dir_output, "dendrograma_correlação.png"),
+         width = 900, height = 700, res = 150)
+dev.off()
 
 
 # =============================================================================
@@ -375,19 +414,23 @@ cat("Desvio residual:", round(deviance(mod_pois), 2),
 # Mapa e envelope simulado dos resíduos
 distritos$resid_pois <- residuals(mod_pois, type = "deviance")
 
-print(
-  ggplot(distritos) +
-    geom_sf(aes(fill = resid_pois)) +
-    scale_fill_gradient2(midpoint = 0, low = "#2166ac", mid = "white",
-                         high = "#b2182b", name = "Resíduo\ndeviance") +
-    labs(title = "Resíduos — Poisson") +
-    theme_minimal() +
-    theme(axis.text = element_blank(), axis.ticks = element_blank())
-)
+p_resid_pois <- ggplot(distritos) +
+  geom_sf(aes(fill = resid_pois)) +
+  scale_fill_gradient2(midpoint = median(distritos$resid_pois, na.rm = TRUE),
+                       low = "blue", mid = "white", high = "red",
+                       name = "Resíduo") +
+  theme_minimal() +
+  labs(title = "Resíduos por Distrito — Modelo de Poisson")
+print(p_resid_pois)
+ggsave(file.path(dir_output, "mapa_residuos_poisson.png"),
+       plot = p_resid_pois, width = 8, height = 6, dpi = 300, bg = "white")
 
 fit.model <- mod_pois
 attach(tab, warn.conflicts = FALSE)
 source(file.path(dir_aux, "envel_pois"), local = TRUE)
+dev.copy(png, file.path(dir_output, "envelope_poisson.png"),
+         width = 800, height = 800, res = 150)
+dev.off()
 detach(tab)
 
 
@@ -402,8 +445,7 @@ detach(tab)
 mod_nb <- glm.nb(
   VF_2018_2022 ~ comodo + composta + mais5 + mulher_resp + igrejas +
     offset(log_casos_esp),
-  data  = tab,
-  start = coef(mod_pois)   # inicializa com coef. Poisson para convergência robusta
+  data  = tab  
 )
 
 ll_nb  <- as.numeric(logLik(mod_nb))
@@ -424,27 +466,32 @@ cat("Theta:", round(mod_nb$theta, 4),
 cat("Pseudo R²:", round(1 - ll_nb / ll0_nb, 4), "\n")
 cat("AICc:", round(AIC(mod_nb) + 2 * k_nb * (k_nb + 1) / (n_nb - k_nb - 1), 2), "\n")
 
-# Teste de razão de verossimilhança — Poisson vs BN
-print(lrtest(mod_pois, mod_nb))
-
 # Mapa e envelope simulado dos resíduos
 distritos$resid_nb <- residuals(mod_nb, type = "deviance")
 
-print(
-  ggplot(distritos) +
-    geom_sf(aes(fill = resid_nb)) +
-    scale_fill_gradient2(midpoint = 0, low = "#2166ac", mid = "white",
-                         high = "#b2182b", name = "Resíduo\ndeviance") +
-    labs(title = "Resíduos — Binomial Negativa") +
-    annotation_scale(location = "br", width_hint = 0.25) +
-    theme_minimal() +
-    theme(axis.text = element_blank(), axis.ticks = element_blank(),
-          panel.grid = element_line(color = "grey90", linewidth = 0.2))
-)
+p_resid_nb <- ggplot(distritos) +
+  geom_sf(aes(fill = resid_nb)) +
+  scale_fill_gradient2(midpoint = median(distritos$resid_nb, na.rm = TRUE),
+                       low = "blue", mid = "white", high = "red",
+                       name = NULL) +
+  annotation_scale(location = "br", width_hint = 0.25,
+                   pad_x = unit(0.2, "cm"), pad_y = unit(0.2, "cm")) +
+  theme_minimal() +
+  theme(plot.title       = element_blank(),
+        panel.grid       = element_line(color = "grey90", linewidth = 0.2),
+        legend.position  = "right",
+        legend.title     = element_blank(),
+        legend.text      = element_text(size = 9))
+print(p_resid_nb)
+ggsave(file.path(dir_output, "mapa_residuos_negbin.png"),
+       plot = p_resid_nb, width = 8, height = 6, dpi = 300, bg = "white")
 
 fit.model <- mod_nb
 attach(tab, warn.conflicts = FALSE)
 source(file.path(dir_aux, "envel_nbin"), local = TRUE)
+dev.copy(png, file.path(dir_output, "envelope_negbin.png"),
+         width = 800, height = 800, res = 150)
+dev.off()
 detach(tab)
 
 # Moran I nos resíduos da BN global
@@ -498,14 +545,14 @@ distritos$cluster_lisa <- mapply(
   MoreArgs = list(media_global = mean(distritos$tip, na.rm = TRUE))
 )
 
-print(
-  ggplot(distritos) +
-    geom_sf(aes(fill = cluster_lisa), color = "#cccccc", linewidth = 0.3) +
-    scale_fill_manual(values = cores_lisa, name = NULL) +
-    labs(title = "LISA — TIP") +
-    theme_minimal() +
-    theme(axis.text = element_blank(), axis.ticks = element_blank())
-)
+p_lisa <- ggplot(distritos) +
+  geom_sf(aes(fill = cluster_lisa), color = "#cccccc", linewidth = 0.3) +
+  scale_fill_manual(values = cores_lisa, name = "Grupo LISA") +
+  theme_minimal() +
+  labs(title = "")
+print(p_lisa)
+ggsave(file.path(dir_output, "mapa_lisa_tx_pad.png"),
+       plot = p_lisa, width = 8, height = 6, dpi = 300)
 
 
 # =============================================================================
@@ -571,16 +618,16 @@ print(tibble::tibble(
 
 # Gráfico de convergência — cenário selecionado
 iter <- gss_ad_aic$iterations
-print(
-  ggplot(
-    data.frame(h = c(iter$h1, iter$h2), aic = c(iter$cv1, iter$cv2)),
-    aes(x = h, y = aic)
-  ) +
-    geom_point(color = "#2171b5") + geom_line(color = "#2171b5") +
-    labs(x = "Largura de banda h (nº de vizinhos)", y = "AICc",
-         title = "Convergência — Golden Section Search") +
-    theme_minimal()
-)
+p_banda <- ggplot(
+  data.frame(h = c(iter$h1, iter$h2), aic = c(iter$cv1, iter$cv2)),
+  aes(x = h, y = aic)
+) +
+  geom_point() + geom_line() +
+  labs(x = "Largura da banda (h)", y = "AIC") +
+  theme_minimal()
+print(p_banda)
+ggsave(file.path(dir_output, "grafico_banda_adaptative_aic.png"),
+       plot = p_banda, width = 8, height = 6, dpi = 300)
 
 # ---------------------------------------------------------------------------
 # 10.3 Ajuste do modelo GWR-NB final
@@ -612,11 +659,6 @@ cat("Deviance:", round(m["deviance"], 3),
 
 print(mod_gwr$descript_stats_gwr_param_estimates)
 
-# Teste de não-estacionariedade
-# Disponível apenas para método "fixed_g". Com "adaptive_bsq" (método selecionado)
-# mod_gwr$non_stationarity_test retorna NULL — avaliação de não-estacionariedade
-# deve ser feita pela variabilidade espacial dos coeficientes locais (mapas abaixo).
-print(mod_gwr$non_stationarity_test)
 
 # ---------------------------------------------------------------------------
 # 10.4 Mapas dos coeficientes locais
@@ -656,13 +698,20 @@ mapa_coef <- function(v, titulo) {
   ggplot(distritos) +
     geom_sf(aes(fill = fill), color = "#f7f7f7", linewidth = 0.35) +
     scale_fill_gradient2(low = "#2166ac", mid = "white", high = "#b2182b",
-                         midpoint = 0, na.value = "grey85", name = NULL) +
-    annotation_scale(location = "br", width_hint = 0.25) +
-    labs(title = titulo, subtitle = "Cinza = não significativo a 10%") +
+                         midpoint = 0, na.value = "grey90", name = NULL) +
+    annotation_scale(location = "br", width_hint = 0.25,
+                     pad_x = unit(0.2, "cm"), pad_y = unit(0.2, "cm")) +
     theme_minimal() +
-    theme(axis.text = element_blank(), axis.ticks = element_blank(),
-          panel.grid = element_line(color = "grey90", linewidth = 0.2),
-          plot.subtitle = element_text(size = 9, color = "grey50"))
+    theme(axis.text        = element_blank(),
+          axis.ticks       = element_blank(),
+          panel.grid       = element_line(color = "grey90", linewidth = 0.2),
+          legend.position  = "right",
+          legend.box       = "vertical",
+          legend.title     = element_blank(),
+          legend.text      = element_text(size = 9),
+          plot.title       = element_blank()) +
+    guides(fill = guide_colorbar(order = 1, title.position = "top",
+                                 title.hjust = 0.5))
 }
 
 walk(
@@ -673,7 +722,12 @@ walk(
     list(v = "mulher_resp", titulo = "Coef. local — mulher_resp"),
     list(v = "alpha",       titulo = "Superdispersão local (alpha)")
   ),
-  function(x) print(mapa_coef(x$v, x$titulo))
+  function(x) {
+    p <- mapa_coef(x$v, x$titulo)
+    print(p)
+    ggsave(file.path(dir_output, paste0("mapa_param_gwr_bn_", x$v, ".png")),
+           plot = p, width = 10, height = 7.5, dpi = 300, bg = "white")
+  }
 )
 
 # ---------------------------------------------------------------------------
@@ -688,17 +742,22 @@ moran_gwr_resid <- moran.mc(distritos$resid_gwr, listw = w_knn, nsim = 999)
 cat("Moran I (resíduos GWR-NB):", round(moran_gwr_resid$statistic, 4),
     " p-valor:", moran_gwr_resid$p.value, "\n")
 
-print(
-  ggplot(distritos) +
-    geom_sf(aes(fill = resid_gwr)) +
-    scale_fill_gradient2(midpoint = 0, low = "#2166ac", mid = "white",
-                         high = "#b2182b", name = "Resíduo\ntrabalho") +
-    labs(title = "Resíduos — GWR-NB") +
-    annotation_scale(location = "br", width_hint = 0.25) +
-    theme_minimal() +
-    theme(axis.text = element_blank(), axis.ticks = element_blank(),
-          panel.grid = element_line(color = "grey90", linewidth = 0.2))
-)
+p_resid_gwr <- ggplot(distritos) +
+  geom_sf(aes(fill = resid_gwr)) +
+  scale_fill_gradient2(midpoint = median(distritos$resid_gwr, na.rm = TRUE),
+                       low = "blue", mid = "white", high = "red",
+                       name = "Residuos") +
+  annotation_scale(location = "br", width_hint = 0.25,
+                   pad_x = unit(0.2, "cm"), pad_y = unit(0.2, "cm")) +
+  theme_minimal() +
+  theme(plot.title       = element_blank(),
+        panel.grid       = element_line(color = "grey90", linewidth = 0.2),
+        legend.position  = "right",
+        legend.title     = element_blank(),
+        legend.text      = element_text(size = 9))
+print(p_resid_gwr)
+ggsave(file.path(dir_output, "mapa_residuos_gwr_negbin.png"),
+       plot = p_resid_gwr, width = 8, height = 6, dpi = 300, bg = "white")
 
 
 # =============================================================================
