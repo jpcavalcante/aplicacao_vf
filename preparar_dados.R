@@ -21,9 +21,7 @@ library(stringr)
 library(stringi)
 
 # Diretório de dados (relativo à raiz do projeto)
-dados_dir <- "dados"
-
-message("▶ Lendo shapefiles e arquivos tabulares...")
+dados_dir <- "~/Documents/aplicacao_vf_mestrado/aplicacao_vf/dados/"
 
 # -----------------------------------------------------------------------------
 # 1. Shapefile dos distritos (geometria base)
@@ -127,3 +125,4 @@ message("  Linhas: ", nrow(base_sf), " | Colunas: ", ncol(base_sf))
 message("")
 message("  Você pode deletar os arquivos xlsx/csv/shapefiles individuais")
 message("  da pasta dados/ após verificar que o GeoPackage está completo.")
+

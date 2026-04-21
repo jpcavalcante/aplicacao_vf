@@ -1,0 +1,2438 @@
+---
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+  pdf_document: default
+---
+
+```{r}
+knitr::opts_chunk$set(
+echo = FALSE, # não mostrar código
+message = FALSE, # esconder mensagens
+warning = FALSE # esconder warnings
+)
+
+```
+
+```{r setup, include=FALSE}
+
+# Manipulação de dados e gráficos (prioriza dplyr e ggplot2)
+library(tidyverse)    # inclui dplyr, ggplot2, tidyr, purrr, readr, tibble, stringr, forcats
+
+# Leitura de arquivos
+library(readxl)       # para ler arquivos .xlsx
+library(openxlsx)     # para escrever arquivos .xlsx
+
+# Mapas e análise espacial
+library(sf)           # para objetos espaciais (substitui sp)
+library(spdep)        # dependência espacial
+library(GWmodel)      # regressão geograficamente ponderada
+library(mgwnbr)       # sua função customizada de GWR com binomial negativa
+
+# Modelagem e estatística
+library(robustbase)   # modelagem robusta
+library(car)          # VIF, testes estatísticos
+library(broom)        # transformar modelos em tidy data frames
+#library(MuMIn)        # seleção de modelos (AIC, etc.)
+library(MASS)
+
+# Visualização adicional
+library(corrplot)     # correlações
+library(ggrepel)      # para rótulos em gráficos ggplot2
+
+# Tabelas e relatórios
+library(knitr)
+library(kableExtra)
+
+### dados geoSes e taxa padronizada
+pop_total <- read.xlsx("~/Documents/GitHub/dissertacao/analise/dados/dados - Sheet1.xlsx", sheet = 1) %>% dplyr::select(ds_nome,Pop) %>% rename(populacao_total = Pop)
+
+### dados violencia fisica e sexual 2018-2022
+dados_2018_2022 = read.csv2("~/Documents/GitHub/dissertacao/analise/dados/vf_fx_eta_gen_2018_2022.csv",sep = ",",check.names = FALSE)
+
+#dados_2018_2022 = read.xlsx("~/Documents/GitHub/dissertacao/analise/dados/Estatística VF e VS 2016_2022-2.xlsx", sheet = 3) 
+
+#### padronizacao do nome do distrito
+dados_2018_2022$ds_nome <- toupper(stringi::stri_trans_general(dados_2018_2022$DistrAdminist, "Latin-ASCII")) 
+dados_2018_2022 = dados_2018_2022 %>% dplyr::select(-c(DistrAdminist))
+### dados senso 2022
+dados_senso = read_xlsx("~/Documents/GitHub/dissertacao/analise/dados/variaveis_distritosMSP.xlsx")
+
+distritos <- st_read("~/Documents/GitHub/dissertacao/analise/dados/Distr_Adm_Munic_SP/Distr_Adm_Munic_SP.shp")  
+
+# dados renda media 
+dados_renda = read.xlsx("~/Documents/GitHub/dissertacao/analise/dados/media_renda_distritos_SP.xlsx", sheet = 1) 
+#### padronizacao do nome do distrito
+dados_renda$ds_nome <- toupper(stringi::stri_trans_general(dados_renda$NM_DIST, "Latin-ASCII")) 
+dados_renda = dados_renda %>% dplyr::select(-c(NM_DIST))
+
+#dados populacao em risco
+pop_risc <- read.xlsx("~/Documents/GitHub/dissertacao/analise/dados/soma_criancas_distrito.xlsx") %>% rename(pop_risc_0_9_anos = total)
+
+# centroide deslocado 
+centroide_desl <- st_read("~/Documents/GitHub/dissertacao/analise/dados/novo_centr_msp_desloc/novo_centr_msp_desloc.shp")   %>% st_drop_geometry
+
+
+#dados de igrejas (em shapefile)
+dados_igre <- st_read("~/Documents/GitHub/dissertacao/analise/dados/bares_igrejas_por_distrito/igrejas_por_distrito.shp")  %>% st_drop_geometry %>% rename(igrejas = NUMPOINTS) %>% dplyr::select(ds_nome, igrejas)
+
+#dados de bares (em shapefile)
+dados_bar= st_read("~/Documents/GitHub/dissertacao/analise/dados/bares_igrejas_por_distrito/bares_por_distrito.shp")  %>% st_drop_geometry%>% rename(bares = NUMPOINTS) %>% dplyr::select(ds_nome, bares)
+
+
+#tratando bares e igrejas e unindo em um unico df
+dados_bar_igre <- merge(dados_igre, dados_bar, by = "ds_nome")
+#base com dados de num esperado + bares e igrejas
+#dados <- merge(dados, dados_bar_igre, by = "ds_nome")
+
+### unindo todas as tabelas
+#casos de violencia fisica
+dados_1 <- merge(dados_bar_igre, dados_2018_2022, by = "ds_nome")
+
+#dados_pop_risco
+dados_2 <- merge(dados_1, pop_risc, by = "ds_nome")
+
+#dados senso
+library(stringr)
+dados_senso$CD_distrito <- str_sub(dados_senso$CD_DIST, -2) 
+
+dados_3 <- merge(dados_2, dados_senso, by = "CD_distrito") #adicionando casos de VF e VS
+
+#adicionando o centroide deslocado
+
+dados_4 <- merge(dados_3, centroide_desl, by.x = "ds_nome", by.y = "ds_nome") 
+
+#populacao total do distrito
+dados_5 <- merge(dados_4, pop_total, by.x = "ds_nome", by.y = "ds_nome") 
+
+### dados renda media 
+dados_6 <- merge(dados_5, dados_renda, by.x = "ds_nome", by.y = "ds_nome") 
+
+#### unindo tabelas
+
+dados_completo <- distritos %>% left_join(dados_6, by = c("ds_nome" = "ds_nome"))
+
+dados = dados_completo
+
+
+```
+
+## Distribuição casos de violencia fisica
+
+```{r, echo = FALSE}
+
+library(ggplot2)
+library(sf)
+library(dplyr)
+
+output_dir <- "~/Documents/GitHub/dissertacao/analise/output/plots_output"
+if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+
+dados_zero <- dados %>%
+  filter(VF_2018_2022 == 0) %>%
+  mutate(centroide = st_centroid(geometry)) %>%
+  mutate(x = st_coordinates(centroide)[,1],
+         y = st_coordinates(centroide)[,2])
+
+p <- ggplot(dados) +
+  geom_sf(aes(fill = VF_2018_2022)) +
+  scale_fill_gradientn(
+    colours = c("white", "#2171b5", "#08306b"),
+    name = "Casos notificados",
+    oob = scales::squish
+  ) +
+  geom_text(
+    data = dados_zero,
+    aes(x = x, y = y),
+    label = "", size = 5, color = "black"
+  ) +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "",
+    fill = "Casos notificados"
+  )
+
+output_file <- file.path(output_dir, "mapa_vf_2018_2022.png")
+ggsave(output_file, plot = p, width = 9, height = 7, dpi = 150)
+
+knitr::include_graphics("~/Documents/GitHub/dissertacao/analise/output/plots_output/mapa_vf_2018_2022.png")
+
+
+```
+
+```{r}
+library(ggplot2)
+library(sf)
+library(dplyr)
+library(ggspatial)
+
+output_dir <- "~/Documents/GitHub/dissertacao/analise/output/plots_output"
+if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+
+# Calcula os centróides para posicionar os círculos
+dados_centroides <- dados %>%
+  mutate(centroide = st_centroid(geometry)) %>%
+  mutate(x = st_coordinates(centroide)[, 1],
+         y = st_coordinates(centroide)[, 2])
+
+# Define limites da escala de tamanhos com base na distribuição dos dados
+min_val <- min(dados_centroides$VF_2018_2022, na.rm = TRUE)
+max_val <- max(dados_centroides$VF_2018_2022, na.rm = TRUE)
+
+# Mapa com círculos proporcionais
+p <- ggplot() +
+  geom_sf(data = dados, fill = "gray95", color = "grey50", size = 0.25, alpha = 0.8) + 
+  geom_point(
+    data = dados_centroides,
+    aes(x = x, y = y, size = VF_2018_2022),
+    color = "#2171b5", alpha = 0.8
+  ) +
+  scale_size(
+    name = "Casos notificados", # título da escala
+    range = c(0, 10),
+    limits = c(min_val, max_val),
+    breaks = pretty(c(min_val, max_val), n = 4)
+  ) +
+  annotation_scale(
+    location = "br",
+    width_hint = 0.25,
+    pad_x = unit(0.2, "cm"),
+    pad_y = unit(0.2, "cm")
+  ) +
+  theme_minimal() +
+  theme(
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_line(color = "grey90", size = 0.2),
+    plot.title = element_blank() # não apaga o título da legenda
+  )
+
+# Salva o mapa
+output_file <- file.path(output_dir, "mapa_vf_circulos.png")
+ggsave(output_file, plot = p, width = 9, height = 7, dpi = 150)
+
+# Inclui no documento
+knitr::include_graphics(output_file)
+```
+
+
+
+## Taxa Padronizada
+
+```{r echo=FALSE}
+library(dplyr)
+
+# Agrupamento de totais da cidade (taxas de referência)
+taxas_ref <- dados_completo %>%
+  summarise(
+    casos_m0_4 = sum(VF_masc_0_4_anos, na.rm = TRUE),
+    casos_m5_9 = sum(VF_masc_5_9_anos, na.rm = TRUE),
+    casos_f0_4 = sum(VF_fem_0_4_anos, na.rm = TRUE),
+    casos_f5_9 = sum(VF_fem_5_9_anos, na.rm = TRUE),
+    
+    pop_m0_4 = sum(meninos0a4, na.rm = TRUE),
+    pop_m5_9 = sum(meninos5a9, na.rm = TRUE),
+    pop_f0_4 = sum(meninas0a4, na.rm = TRUE),
+    pop_f5_9 = sum(meninas5a9, na.rm = TRUE)
+  ) %>%
+  mutate(
+    taxa_m0_4 = casos_m0_4 / pop_m0_4,
+    taxa_m5_9 = casos_m5_9 / pop_m5_9,
+    taxa_f0_4 = casos_f0_4 / pop_f0_4,
+    taxa_f5_9 = casos_f5_9 / pop_f5_9
+  )
+
+# Extrair as taxas específicas
+t_m0_4 <- taxas_ref$taxa_m0_4
+t_m5_9 <- taxas_ref$taxa_m5_9
+t_f0_4 <- taxas_ref$taxa_f0_4
+t_f5_9 <- taxas_ref$taxa_f5_9
+
+# Calcular número esperado por distrito
+dados <- dados_completo %>%
+  mutate(
+    casos_esp_vf = meninos0a4 * t_m0_4 +
+                meninos5a9 * t_m5_9 +
+                meninas0a4 * t_f0_4 +
+                meninas5a9 * t_f5_9,
+    taxa_pad_vf= VF_2018_2022 / casos_esp_vf,
+    log_casos_esp_vf = log(casos_esp_vf)
+  )
+
+```
+### Definição
+
+### Distribuição Espacial
+
+```{r, echo = FALSE}
+
+library(ggplot2)
+library(sf)
+library(dplyr)
+
+output_dir <- "~/Documents/GitHub/dissertacao/analise/output/plots_output"
+if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+
+library(sf)
+library(ggspatial)
+
+dados_proj <- st_transform(dados, 31983)       # Exemplo: SIRGAS 2000 / UTM zona 23S
+dados_zero_proj <- st_transform(dados_zero, 31983)
+
+p <- ggplot(dados_proj) +
+  geom_sf(aes(fill = taxa_pad_vf)) +
+  scale_fill_gradientn(
+    colours = c("white", "#2171b5", "#08306b"),
+    oob = scales::squish
+  ) +
+  geom_text(
+    data = dados_zero_proj,
+    aes(x = x, y = y),
+    label = "*", size = 5, color = "black"
+  ) +
+  annotation_scale(location = "br", width_hint = 0.25) +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.title = element_blank(),      # remove títulos dos eixos
+    axis.text = element_blank(),       # remove textos dos eixos
+    axis.ticks = element_blank(),      # remove marcas dos eixos
+    panel.grid = element_line(color = "grey90", size = 0.2),
+    legend.title = element_blank(),
+    plot.title = element_blank()
+  )
+
+output_file <- file.path(output_dir, "mapa_taxa_padronizada_vf_2018_2022.png")
+ggsave(output_file, plot = p, width = 9, height = 7, dpi = 150)
+
+knitr::include_graphics("~/Documents/GitHub/dissertacao/analise/output/plots_output/mapa_taxa_padronizada_vf_2018_2022.png")
+
+
+```
+
+
+
+### Medidas resumo - adicionar dp
+
+```{r, echo = FALSE}
+summary_tip <- summary(dados$taxa_pad_vf)
+
+
+summary_df <- data.frame(
+  Estatística = c(names(summary_tip), "Variância"),
+  Valor = c(as.numeric(summary_tip), var(dados$taxa_pad_vf, na.rm = TRUE))
+)
+
+kable(summary_df) 
+
+```
+
+### Box plot Robusto
+
+
+```{r}
+library(robustbase)
+library(stringi)
+
+# Define diretório e caminho de saída
+output_dir <- "~/Documents/GitHub/dissertacao/analise/output/plots_output"
+if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+output_file <- file.path(output_dir, "boxplot_robusto_taxa_padronizada.png")
+
+# Abre dispositivo gráfico
+png(filename = output_file, width = 900, height = 700, res = 150)
+
+# Valores e rótulos
+tip_values <- dados$taxa_pad_vf
+#labels <- dados$ds_nome
+
+labels <- str_to_title(stri_trans_general(dados$ds_nome, "Latin-ASCII"))  # primeiro remove uppercase forçado e formata
+
+# Substitui manualmente os acentos onde necessário (exemplo São Miguel, Itaim Paulista etc.)
+labels <- gsub("Sao Miguel", "São Miguel", labels)
+labels <- gsub("Itaim Paulista", "Itaim Paulista", labels)
+labels <- gsub("Marsilac", "Marsilac", labels)
+labels <- gsub("Campo Limpo", "Campo Limpo", labels)
+labels <- gsub("Capao Redondo", "Capão Redondo", labels)
+labels <- gsub("Cidade Dutra", "Cidade Dutra", labels)
+labels <- gsub("Grajaú", "Grajaú", labels)
+labels <- gsub("Jardim Angela", "Jardim Ângela", labels)
+labels <- gsub("Jardim São Luis", "Jardim São Luís", labels)
+labels <- gsub("Consolacao", "Consolação", labels)
+
+# Gera o boxplot robusto
+ajuste_box <- adjbox(
+  tip_values,
+  main = "",
+  ylab = "TIP",
+  col = "#2171b5",
+  border = "#08306b",
+  range = 1.5,
+  doReflect = TRUE,
+  outline = TRUE,
+  notch = FALSE,
+  cex.main = 1.3,
+  cex.lab = 0.8,
+  cex.axis = 1.2
+)
+
+# Adiciona nomes aos outliers com linhas conectando
+outliers_ajustados <- ajuste_box$out
+if (length(outliers_ajustados) > 0) {
+  outlier_indices <- which(tip_values %in% outliers_ajustados)
+  y_out <- tip_values[outlier_indices]
+  x_out <- rep(1, length(y_out))
+  
+  points(x = x_out, y = y_out, pch = 16, col = "black", cex = 0.6)
+  
+  # Alterna entre esquerda e direita
+  lado_direito <- seq(1, length(y_out), by = 2)
+  lado_esquerdo <- seq(2, length(y_out), by = 2)
+
+  x_lab_direita <- rep(1.05, length(lado_direito))  # Ligeiramente à direita
+  x_lab_esquerda <- rep(0.95, length(lado_esquerdo)) # Ligeiramente à esquerda
+
+  # Segmentos e rótulos - direita
+  segments(x0 = x_out[lado_direito], y0 = y_out[lado_direito], x1 = x_lab_direita, y1 = y_out[lado_direito], col = "gray30")
+  text(x = x_lab_direita,
+       y = y_out[lado_direito],
+       labels = labels[outlier_indices[lado_direito]],
+       pos = 4, col = "black", cex = 0.8)
+
+  # Segmentos e rótulos - esquerda
+  segments(x0 = x_out[lado_esquerdo], y0 = y_out[lado_esquerdo], x1 = x_lab_esquerda, y1 = y_out[lado_esquerdo], col = "gray30")
+  text(x = x_lab_esquerda,
+       y = y_out[lado_esquerdo],
+       labels = labels[outlier_indices[lado_esquerdo]],
+       pos = 2, col = "black", cex = 0.8)
+}
+
+# Fecha o dispositivo gráfico
+dev.off()
+
+# Inclui a imagem no RMarkdown
+knitr::include_graphics(output_file)
+
+```
+
+### Índice de Moran
+
+
+```{r, echo= FALSE}
+vizinhos <- poly2nb(dados)  
+pesos <- nb2listw(vizinhos, style = "W")  
+resultado_monte_carlo <- moran.mc(dados$taxa_pad_vf, listw = pesos, nsim = 999)
+
+
+tabela_moran <- data.frame(
+  Estatística = c("Índice de Moran (I)", "Valor-p"),
+  Valor = c(
+    round(resultado_monte_carlo$statistic, 5),
+    resultado_monte_carlo$p.value
+  )
+)
+
+
+kable(tabela_moran, format = "markdown", booktabs = TRUE, caption = "\\textbf{Resultados do Teste de Moran com Monte Carlo}",row.names = FALSE)
+
+plot(resultado_monte_carlo)
+
+
+```
+
+
+```{r echo=FALSE}
+
+# alterando renda media 
+
+dados =  dados %>%
+  mutate(rendap = 100 * (media_renda_dist - min(media_renda_dist, na.rm = TRUE)) / 
+                       (max(media_renda_dist, na.rm = TRUE) - min(media_renda_dist, na.rm = TRUE)))
+
+
+
+###### calculo da quantidade de igrejas por mil habitantes
+
+dados$igreja_mil_hab = (dados$igrejas)/(dados$populacao_total/1000)
+
+
+dados =  dados %>%
+  mutate(igrejap = 100 * (igreja_mil_hab - min(igreja_mil_hab, na.rm = TRUE)) / 
+                       (max(igreja_mil_hab, na.rm = TRUE) - min(igreja_mil_hab, na.rm = TRUE)))
+
+
+dados$bares_mil_hab = (dados$bares)/(dados$populacao_total/1000)
+
+
+dados =  dados %>%
+  mutate(baresp = 100 * (bares_mil_hab - min(bares_mil_hab, na.rm = TRUE)) / 
+                       (max(bares_mil_hab, na.rm = TRUE) - min(bares_mil_hab, na.rm = TRUE)))
+library(writexl)
+write_xlsx(dados, path = "~/Documents/GitHub/dissertacao/analise/dados/base_final.xlsx")
+
+
+```
+
+
+
+
+## Analise Descritiva
+
+### Variaveis utilizadas
+
+```{r, echo=FALSE}
+library(knitr)
+library(kableExtra)
+
+variaveis <- data.frame(
+  Variável = c(
+    "alfab", "ate1mora", "mais5", "comodo", "degradada", "mulher_resp",
+    "rede_geral", "banheiro1", "ambos", "plmenos1", "nuclear", "estend", "composta"
+  ),
+  Descrição = c(
+    "Proporção de pessoas com 15 anos ou mais alfabetizadas.",
+    "Proporção de domicílios com apenas um morador.",
+    "Proporção de domicílios com cinco ou mais moradores.",
+    "Proporção de domicílios em habitações coletivas informais, como cortiços ou casas de cômodos.",
+    "Proporção de domicílios com estrutura degradada ou inacabada.",
+    "Proporção de domicílios cujo responsável é do sexo feminino.",
+    "Proporção de domicílios com acesso à rede geral de abastecimento de água.",
+    "Proporção de domicílios com ao menos um banheiro exclusivo com chuveiro e vaso sanitário.",
+    "Proporção de domicílios com casal responsável e filhos apenas desse casal.",
+    "Proporção de domicílios com casal responsável e pelo menos um filho apenas do responsável ou de um dos cônjuges.",
+    "Proporção de unidades domésticas do tipo nuclear (responsável, cônjuge e filhos).",
+    "Proporção de unidades domésticas do tipo estendida (com inclusão de outros parentes).",
+    "Proporção de unidades domésticas do tipo composta (com pessoas sem parentesco com o responsável)."
+  )
+)
+
+kable(variaveis, caption = "Descrição das Variáveis Sociodemográficas (Censo 2022)") %>%
+  kable_styling(full_width = FALSE, position = "left")
+```
+
+
+### Distribuicao espacial
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(purrr)
+library(ggplot2)
+library(sf)
+library(ggspatial)
+
+output_dir <- "~/Documents/GitHub/dissertacao/analise/output/plots_output"
+if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+
+variaveis1 <- c(
+  "alfab", "ate1mora", "mais5",
+  "comodo",
+  "ambos", "plmenos1", "composta", "estend", "nuclear", "mulher_resp",
+  "banheiro1", "rendap"
+)
+
+# labels iguais aos nomes das variáveis, mas ajustando bares e igrejas
+labels1 <- variaveis1
+# Paleta de azuis
+blue_low <- "#deebf7"
+blue_high <- "#3182bd"
+
+mapas_variaveis1 <- map2(variaveis1, labels1, function(var, label) {
+  
+  p <- ggplot(dados) +
+    geom_sf(aes(fill = .data[[var]])) +
+    scale_fill_gradientn(
+      colors = c("#deebf7", "#9ecae1", "#3182bd", "#08519c"), 
+      limits = c(0, 100),
+      oob = scales::squish
+    ) +
+    annotation_scale(
+      location = "br",      
+      width_hint = 0.25,    
+      pad_x = unit(0.2, "cm"), 
+      pad_y = unit(0.2, "cm")
+    ) +
+    theme_minimal() +
+    theme(
+      panel.grid = element_line(color = "grey90", size = 0.2),
+      legend.title = element_blank(),
+      plot.title = element_text(hjust = 0.5, size = 14)
+    ) 
+  
+  filename <- file.path(output_dir, paste0("mapa_", var, ".png"))
+  ggsave(filename, plot = p, width = 10, height = 7.5, dpi = 300)
+  
+  return(p)
+})
+
+# Exibir no ambiente interativo (opcional)
+for (p in mapas_variaveis1) {
+  print(p)
+}
+
+
+```
+
+```{r}
+library(purrr)
+library(ggplot2)
+library(sf)
+library(ggspatial)
+
+output_dir <- "~/Documents/GitHub/dissertacao/analise/output/plots_output"
+if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+
+variaveis1 <- c(
+  "igreja_mil_hab",
+  "bares_mil_hab"
+)
+
+# labels iguais aos nomes das variáveis, mas ajustando bares e igrejas
+labels1 <- variaveis1
+labels1[labels1 == "igreja_mil_hab"] <- "igrejas"
+labels1[labels1 == "bares_mil_hab"]  <- "bares"
+
+# Paleta de azuis
+blue_low <- "#deebf7"
+blue_high <- "#3182bd"
+
+mapas_variaveis1 <- map2(variaveis1, labels1, function(var, label) {
+  
+  p <- ggplot(dados) +
+    geom_sf(aes(fill = .data[[var]])) +
+    scale_fill_gradientn(
+      colors = c("#deebf7", "#9ecae1", "#3182bd", "#08519c"), 
+      limits = c(0, 12),
+      oob = scales::squish
+    ) +
+    annotation_scale(
+      location = "br",      
+      width_hint = 0.25,    
+      pad_x = unit(0.2, "cm"), 
+      pad_y = unit(0.2, "cm")
+    ) +
+    theme_minimal() +
+    theme(
+      panel.grid = element_line(color = "grey90", size = 0.2),
+      legend.title = element_blank(),
+      plot.title = element_text(hjust = 0.5, size = 14)
+    ) 
+  
+  filename <- file.path(output_dir, paste0("mapa_", var, ".png"))
+  ggsave(filename, plot = p, width = 10, height = 7.5, dpi = 300)
+  
+  return(p)
+})
+
+# Exibir no ambiente interativo (opcional)
+for (p in mapas_variaveis1) {
+  print(p)
+}
+
+```
+
+
+### Medidas Resumo
+
+```{r, echo=FALSE}
+
+library(dplyr)
+library(tidyr)
+library(knitr)
+
+# Variáveis apresentadas nos mapas
+variaveis <- c(
+  "alfab", "ate1mora", "mais5",
+  "comodo",
+  "ambos", "plmenos1", "composta", "estend", "nuclear", "mulher_resp",
+  "banheiro1", "rendap",
+  "igreja_mil_hab", "bares_mil_hab"
+)
+
+# Dados longos apenas com essas variáveis
+dados_long <- st_drop_geometry(dados) %>%
+  dplyr::select(all_of(variaveis)) %>%
+  pivot_longer(cols = everything(), names_to = "Variável", values_to = "Valor")
+
+# Estatísticas descritivas na ordem solicitada
+estatisticas <- dados_long %>%
+  group_by(Variável) %>%
+  summarise(
+    `Média` = mean(Valor, na.rm = TRUE),
+    `Desvio-padrão` = sd(Valor, na.rm = TRUE),
+    `Mínimo` = min(Valor, na.rm = TRUE),
+    `1º Quartil` = quantile(Valor, 0.25, na.rm = TRUE),
+    `Mediana` = median(Valor, na.rm = TRUE),
+    `3º Quartil` = quantile(Valor, 0.75, na.rm = TRUE),
+    `Máximo` = max(Valor, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(across(where(is.numeric), ~round(., 2))) %>%
+  pivot_longer(cols = -Variável, names_to = "Estatística", values_to = "Valor") %>%
+  pivot_wider(names_from = Variável, values_from = Valor)
+
+# Exibição da tabela
+kable(
+  estatisticas,
+  format = "markdown",
+  booktabs = TRUE,
+  caption = "\\textbf{Análise Descritiva das Variáveis Mapeadas (com Medidas Resumo na Ordem Especificada)}"
+)
+
+
+
+```
+
+### Box Plot
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(robustbase)
+
+output_dir <- "~/Documents/GitHub/dissertacao/analise/output/plots_output"
+if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+
+robust_boxplot_stats <- function(x) {
+  ajuste <- adjbox(x, plot = FALSE)
+  stats <- ajuste$stats
+  out <- ajuste$out
+  list(
+    min = stats[1],
+    q1 = stats[2],
+    median = stats[3],
+    q3 = stats[4],
+    max = stats[5],
+    outliers = out
+  )
+}
+
+grupo1 <- c("alfab", "ate1mora", "mais5", "mulher_resp", "rendap")
+grupo2 <- c("banheiro1", "comodo")
+grupo3 <- c("ambos", "plmenos1", "composta", "estend", "nuclear")
+grupo4 <- c("igreja_mil_hab", "bares_mil_hab")
+
+dados_sem_geo <- st_drop_geometry(dados)
+
+## define ylim_padrao com base em todos os grupos 1–3
+vars_123 <- c(grupo1, grupo2, grupo3)
+range_123 <- range(dados_sem_geo[, vars_123], na.rm = TRUE)
+ylim_padrao <- c(floor(range_123[1]), ceiling(range_123[2]))
+
+## define limite para grupo 4
+range_4 <- range(dados_sem_geo[, grupo4], na.rm = TRUE)
+ymax4 <- ceiling(range_4[2])
+
+cria_boxplot_grupo <- function(vars, labels, ylim, nome_arquivo, ylab = "Porcentagem") {
+  box_stats <- lapply(vars, function(var) robust_boxplot_stats(dados_sem_geo[[var]]))
+  
+  png(filename = file.path(output_dir, nome_arquivo), width = 800, height = 900, res = 150)
+  par(mar = c(8, 5, 4, 2) + 0.1)
+  
+  plot(NA, xlim = c(0.5, length(labels) + 0.5), ylim = ylim,
+       xaxt = "n", xlab = "", ylab = ylab, main = "")
+  
+  for (i in seq_along(labels)) {
+    stat <- box_stats[[i]]
+    rect(i - 0.3, stat$q1, i + 0.3, stat$q3, col = "#2171b5", border = "#08306b")
+    segments(i - 0.3, stat$median, i + 0.3, stat$median, lwd = 2, col = "#08306b")
+    segments(i, stat$min, i, stat$q1, lwd = 1.5, col = "#08306b")
+    segments(i, stat$q3, i, stat$max, lwd = 1.5, col = "#08306b")
+    segments(i - 0.3, stat$min, i + 0.3, stat$min, lwd = 1.5, col = "#08306b")
+    segments(i - 0.3, stat$max, i + 0.3, stat$max, lwd = 1.5, col = "#08306b")
+    if (length(stat$outliers) > 0) {
+      y_offsets <- seq(-0.1, 0.1, length.out = length(stat$outliers))
+      points(rep(i, length(stat$outliers)), stat$outliers + y_offsets, col = "black", pch = 16)
+    }
+  }
+  axis(1, at = seq_along(labels), labels = labels, las = 2)
+  dev.off()
+}
+
+cria_boxplot_grupo(grupo1, grupo1, ylim_padrao, "boxplot_robusto_grupo1.png", ylab = "Porcentagem")
+cria_boxplot_grupo(grupo2, grupo2, ylim_padrao, "boxplot_robusto_grupo2.png", ylab = "Porcentagem")
+cria_boxplot_grupo(grupo3, grupo3, ylim_padrao, "boxplot_robusto_grupo3.png", ylab = "Porcentagem")
+
+cria_boxplot_grupo(grupo4, c("igrejas", "bares"), c(0, ymax4),
+                   "boxplot_robusto_grupo4.png", ylab = "Densidade por mil habitantes")
+
+knitr::include_graphics(file.path(output_dir, "boxplot_robusto_grupo1.png"))
+knitr::include_graphics(file.path(output_dir, "boxplot_robusto_grupo2.png"))
+knitr::include_graphics(file.path(output_dir, "boxplot_robusto_grupo3.png"))
+knitr::include_graphics(file.path(output_dir, "boxplot_robusto_grupo4.png"))
+
+
+
+```
+
+### Correlação das variaveis explicativas com a resposta
+
+```{r echo=FALSE}
+library(dplyr)
+library(knitr)
+
+# Defina as variáveis explicativas e a resposta
+variaveis <- c(
+  "alfab", "ate1mora", "mais5", "comodo",
+  "ambos", "plmenos1", "composta", "estend", "nuclear", "mulher_resp",
+  "banheiro1", "rede_geral", "rendap", "igreja_mil_hab", "bares_mil_hab"
+)
+
+# Nomes legíveis para a tabela
+labels <- c(
+  "Alfabetiz.", "1 Morador", "5+ Moradores", "Hab. Coletiva",
+  "Casal/Filh.", "Casal/Resp.", "Composta", "Estendida", "Nuclear", "Resp. Mulher",
+  "Banheiro", "Rede Água", "Renda (%)", "Igrejas/1000 hab.", "Bares/1000 hab."
+)
+
+# Criação da tabela com correlação de Pearson e p-valor
+cor_tab <- lapply(seq_along(variaveis), function(i) {
+  var <- variaveis[i]
+  teste <- cor.test(dados$taxa_pad_vf, dados[[var]], method = "pearson")
+  data.frame(
+    Variável = labels[i],
+    Pearson = round(teste$estimate, 3),
+    `Valor p` = formatC(teste$p.value, format = "e", digits = 2)
+  )
+}) %>% bind_rows()
+
+# Exibe a tabela em Markdown
+kable(cor_tab,
+      format = "markdown",
+      booktabs = TRUE,
+      row.names = FALSE,
+      caption = "Correlação de Pearson entre a Taxa Padronizada de Violência Física e Variáveis Explicativas")
+
+```
+
+
+### Correlação entre variaveis explicativas
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+# Carregue os pacotes necessários
+library(corrplot)
+library(dplyr)
+
+# Defina as variáveis e os nomes legíveis
+variaveis <- c(
+  "alfab", "ate1mora", "mais5", "comodo",
+  "ambos", "plmenos1", "composta", "estend", "nuclear", "mulher_resp",
+  "banheiro1", "rendap", "igreja_mil_hab", "bares_mil_hab"
+)
+
+
+labels <- c(
+  "alfab", "ate1mora", "mais5", "comodo",
+  "ambos", "plmenos1", "composta", "estend", "nuclear", "mulher_resp",
+  "banheiro1", "rendap", "igrejas", "bares"
+)
+
+# Extraia os dados para a matriz de correlação
+dados_correlacao <- st_drop_geometry(dados) %>%
+  dplyr::select(all_of(variaveis))
+
+# Calcule a matriz de correlação de Pearson
+matriz_correlacao <- cor(dados_correlacao, use = "complete.obs")
+
+# Ajuste os nomes das variáveis na matriz para nomes legíveis
+colnames(matriz_correlacao) <- labels
+rownames(matriz_correlacao) <- labels
+
+# Defina o diretório de saída
+output_dir <- "~/Documents/GitHub/dissertacao/analise/output/plots_output"
+if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+output_file <- file.path(output_dir, "matriz_correlacao_variaveis.png")
+
+# Salve a matriz de correlação em alta resolução
+png(filename = output_file, width = 1800, height = 1500, res = 180)
+corrplot(
+  matriz_correlacao,
+  method = "color",
+  type = "upper",
+  addCoef.col = "black",
+  tl.col = "black",
+  tl.srt = 45,
+  tl.cex = 0.9,
+  number.cex = 0.7,
+  col = colorRampPalette(c("#08306b", "white", "#b30000"))(200),
+  mar = c(0,0,2,0)
+)
+title("", line = 1)
+dev.off()
+
+knitr::include_graphics("~/Documents/GitHub/dissertacao/analise/output/plots_output/matriz_correlacao_variaveis.png")
+```
+
+
+
+
+
+
+### Dendograma - Correlação de Pearson
+
+```{r, echo= FALSE}
+library(ggplot2)
+
+# Dados para o dendrograma
+dados_dend <- st_drop_geometry(dados) %>% 
+  dplyr::select(intersect(names(dados), c(
+    "alfab", "ate1mora", "mais5", "comodo",
+    "ambos", "plmenos1", "composta", "estend", "nuclear", "mulher_resp",
+    "banheiro1", "rendap", "igreja_mil_hab", "bares_mil_hab"
+  )))
+
+# Correlação de Pearson e matriz de dissimilaridade
+cor_pearson <- cor(dados_dend, method = "pearson", use = "complete.obs")
+dissimilarity <- 1 - abs(cor_pearson)
+distance <- as.dist(dissimilarity)
+
+# Rótulos mais claros para o dendrograma
+rotulos_claros <- c(
+  "alfab" = "alfab",
+  "ate1mora" = "ate1mora",
+  "mais5" = "mais5",
+  "comodo" = "comodo",
+  "ambos" = "ambos",
+  "plmenos1" = "plmenos1",
+  "composta" = "composta",
+  "estend" = "estend",
+  "nuclear" = "nuclear",
+  "mulher_resp" = "mulher_resp",
+  "banheiro1" = "banheiro1",
+  "rendap" = "rendap",
+  "igreja_mil_hab" = "igrejas",
+  "bares_mil_hab" = "bares"
+)
+
+# Atualiza os nomes da matriz de correlação e distância
+colnames(cor_pearson) <- rownames(cor_pearson) <- rotulos_claros[colnames(cor_pearson)]
+attr(distance, "Labels") <- rotulos_claros[attr(distance, "Labels")]
+
+# Caminho para salvar
+output_dir <- "~/Documents/GitHub/dissertacao/analise/output/plots_output"
+if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+output_file <- file.path(output_dir, "dendrograma_correlação.png")
+
+# Salvar como PNG
+png(filename = output_file, width = 900, height = 700, res = 150)
+plot(
+  hclust(distance, method = "ward.D"), 
+  main = "",
+  xlab = "",
+  cex.main = 1.4, cex.lab = 1.2, cex.axis = 0.9
+)
+dev.off()
+
+```
+
+
+```{r eval=FALSE, include=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Variáveis e rótulos legíveis
+variaveis <- c(
+  "alfab", "ate1mora", "mais5", "comodo", "degradada",
+  "ambos", "plmenos1", "composta", "estend", "nuclear", "mulher_resp",
+  "banheiro1", "rede_geral", "rendap", "igreja_mil_hab", "bares_mil_hab"
+)
+
+labels_legiveis <- c(
+  "Alfabetiz.", "1 Morador", "5+ Moradores", "Hab. Coletiva", "Estrut. Deg.",
+  "Casal/Filh.", "Casal/Resp.", "Composta", "Estendida", "Nuclear", "Resp. Mulher",
+  "Banheiro", "Rede Água", "Renda (%)", "Igrejas/1000 hab.", "Bares/1000 hab."
+)
+
+# Grupos definidos manualmente
+grupos <- c(
+  composta = 1,
+  ate1mora = 1,
+  nuclear = 1,
+  comodo = 2,
+  mulher_resp = 2,
+  bares_mil_hab = 2,
+  rendap = 3,
+  mais5 = 3,
+  estend = 3,
+  banheiro1 = 3,
+  ambos = 3,
+  alfab = 3,
+  plmenos1 = 3,
+  degradada = 4,
+  igreja_mil_hab = 4
+)
+
+# Ordenação conforme os nomes da matriz de correlação final
+ordem <- names(sort(grupos))  # ordena primeiro pelo número do grupo
+labels_ordenados <- labels_legiveis[match(ordem, variaveis)]
+grupos_ord <- grupos[ordem]
+
+# Dados e matriz de correlação
+dados_cor <- st_drop_geometry(dados) %>%
+  select(all_of(ordem)) %>%
+  mutate(across(everything(), as.numeric))
+
+cor_mat <- cor(dados_cor, use = "pairwise.complete.obs")
+
+# Transforma para formato longo (tibble)
+cor_df <- as.data.frame(as.table(cor_mat)) %>%
+  rename(Var1 = Var1, Var2 = Var2, Cor = Freq) %>%
+  filter(Var1 != Var2) %>%
+  mutate(
+    Var1 = factor(Var1, levels = ordem),
+    Var2 = factor(Var2, levels = ordem),
+    grupo1 = grupos_ord[as.character(Var1)],
+    grupo2 = grupos_ord[as.character(Var2)],
+    grupo_fundo = ifelse(grupo1 == grupo2, as.character(grupo1), NA)
+  ) %>%
+  filter(as.numeric(Var1) < as.numeric(Var2))  # Apenas matriz superior
+
+# Atualiza os labels visuais
+levels(cor_df$Var1) <- labels_ordenados
+levels(cor_df$Var2) <- labels_ordenados
+
+# Paleta de tons de cinza
+cinzas <- gray.colors(4, start = 0.85, end = 0.3)
+cores_grupos <- setNames(cinzas, as.character(1:4))
+
+# Gráfico com ggplot no mesmo estilo visual do corrplot (type = "upper")
+p <- ggplot(cor_df, aes(x = Var2, y = Var1, fill = grupo_fundo)) +
+  geom_tile(color = "gray90", size = 0.3) +
+  geom_text(aes(label = round(Cor, 2)), color = "black", size = 2.5) +
+  scale_fill_manual(values = cores_grupos, na.value = "white") +
+  scale_x_discrete(position = "top") +
+  scale_y_discrete(limits = rev(levels(cor_df$Var1))) +
+  coord_fixed() +
+  theme_minimal() +
+  labs(
+    title = "Matriz de Correlação (Pearson) — Blocos por Grupo",
+    x = NULL, y = NULL
+  ) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 0),
+    axis.text = element_text(size = 10),
+    legend.position = "none"
+  )
+
+# Caminho de saída
+caminho_saida <- "~/Documents/GitHub/dissertacao/analise/output/plots_output/matriz_correlacao_grupos_estilo_corrplot.png"
+
+# Salva a imagem
+ggsave(
+  filename = caminho_saida,
+  plot = p,
+  width = 8, height = 6, dpi = 300, bg = "white"
+)
+
+# Exibe no RMarkdown
+knitr::include_graphics(caminho_saida)
+
+
+
+
+```
+
+
+## Modelo Poisson 
+
+```{r echo=FALSE}
+dados_modelo = st_drop_geometry(dados)
+
+# Supondo que o modelo Poisson esteja ajustado como:
+modelo_pois <- glm(VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp+igreja_mil_hab + 
+                     offset(log_casos_esp_vf),
+                   data = dados_modelo, 
+                   family = poisson())
+
+# 1. Log-verossimilhança
+log_verossim <- as.numeric(logLik(modelo_pois))
+
+# 2. Pseudo R² de McFadden
+modelo_nulo <- update(modelo_pois, . ~ 1)                # Modelo apenas com intercepto
+log_verossim_nulo <- as.numeric(logLik(modelo_nulo))
+pseudo_r2 <- 1 - (log_verossim / log_verossim_nulo)
+
+# 3. Desvio do resíduo
+desvio_residuo <- sqrt(deviance(modelo_pois) / df.residual(modelo_pois))
+
+# 4. AIC
+aic_valor <- AIC(modelo_pois)
+
+# 5. AICc (AIC corrigido para amostras pequenas)
+n <- nobs(modelo_pois)                                   # Número de observações
+k <- length(coef(modelo_pois))                           # Número de parâmetros estimados
+aicc_valor <- aic_valor + (2 * k * (k + 1)) / (n - k - 1)
+desvio_residual <- deviance(modelo_pois)
+graus_liberdade <- df.residual(modelo_pois)
+
+# Exibe os valores
+data.frame(
+  Estatística = c("Log-verossimilhança", "Pseudo R² (McFadden)", "Desvio Residual", "Graus de Liberdade", "AICc"),
+  Valor = c(log_verossim, pseudo_r2, desvio_residual, graus_liberdade, aicc_valor)
+)
+
+
+# Calcular desvio residual
+desvio_residual <- deviance(modelo_pois)
+
+# Obter graus de liberdade dos resíduos
+graus_liberdade <- df.residual(modelo_pois)
+
+```
+
+```{r}
+# Calcula os resíduos do modelo de Poisson
+residuos_pois <- residuals(modelo_pois, type = "deviance")
+dados$residuos_pois <- residuos_pois
+
+# Cria o mapa dos resíduos do modelo de Poisson
+p_pois <- ggplot(dados) +
+  geom_sf(aes(fill = residuos_pois)) +
+  scale_fill_gradient2(
+    midpoint = median(dados$residuos_pois, na.rm = TRUE),
+    low = "blue", mid = "white", high = "red",
+    name = "Resíduo"
+  ) +
+  theme_minimal() +
+  labs(title = "Resíduos por Distrito — Modelo de Poisson")
+
+# Caminho para salvar o arquivo
+caminho_saida_pois <- "~/Documents/GitHub/dissertacao/analise/output/plots_output/mapa_residuos_poisson.png"
+
+# Salva a figura
+ggsave(caminho_saida_pois, plot = p_pois, width = 8, height = 6, dpi = 300, bg = "white")
+
+# Exibe no RMarkdown
+p_pois
+```
+
+### Envelope Simulado
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+fit.model = modelo_pois
+attach(dados_modelo)
+
+# Caminho de saída
+output_dir <- "~/Documents/GitHub/dissertacao/analise/output/plots_output"
+if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+output_file <- file.path(output_dir, "envelope_poisson.png")
+
+png(output_file, width = 800, height = 800, res = 150)
+source("~/Documents/GitHub/dissertacao/analise/arquivos_auxiliares/envel_pois")
+dev.off()
+
+knitr::include_graphics(output_file)
+
+
+```
+
+
+
+## Modelo Bin negativa 
+
+
+
+```{r,echo= FALSE, message= FALSE}
+dados_modelo = st_drop_geometry(dados) 
+
+modelo_nb = glm.nb(VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp+igreja_mil_hab +offset(log_casos_esp_vf), data = dados_modelo)
+tabela_theta <- data.frame(
+  Parametro = "Theta (superdispersão)",
+  Estimativa = round(modelo_nb$theta, 4)
+)
+
+# Extração dos coeficientes, erro padrão, estatística do teste e valor-p do modelo NB
+coef_model_nb <- summary(modelo_nb)$coefficients
+desvio_residual_nb <- deviance(modelo_nb)
+graus_liberdade_nb <- df.residual(modelo_nb)
+
+# Organiza os resultados em um data frame
+coef_table_nb <- data.frame(
+  Variável = rownames(coef_model_nb),
+  Coeficiente = round(coef_model_nb[, "Estimate"], 4),
+  `Erro Padrão` = round(coef_model_nb[, "Std. Error"], 4),
+  Estatística = round(coef_model_nb[, "z value"], 4),
+  `Valor-p` = formatC(coef_model_nb[, "Pr(>|z|)"], format = "e", digits = 3)
+)
+
+# Reordena para colocar o intercepto primeiro
+coef_table_nb <- coef_table_nb %>%
+  dplyr::arrange(factor(Variável, levels = c("(Intercept)", setdiff(Variável, "(Intercept)"))))
+
+# Visualiza a tabela
+coef_table_nb
+
+
+```
+```{r}
+library(MASS)    # para glm.nb
+library(lmtest)  # para lrtest
+
+# Supondo que você já tenha ajustado os modelos
+# modelo_pois e modelo_nb conforme seu código
+
+# Teste de razão de verossimilhança entre Poisson e Binomial Negativo
+resultado_lrt <- lrtest(modelo_pois, modelo_nb)
+
+# Mostrar resultado
+print(resultado_lrt)
+
+# O valor-p do teste fica em resultado_lrt$Pr[2], que testa se há superdispersão significativa
+
+```
+
+
+```{r}
+# Log-verossimilhança
+loglik_nb <- as.numeric(logLik(modelo_nb))
+
+# Pseudo R² de McFadden
+modelo_nulo_nb <- update(modelo_nb, . ~ 1)
+loglik_nulo_nb <- as.numeric(logLik(modelo_nulo_nb))
+pseudo_r2_nb <- 1 - (loglik_nb / loglik_nulo_nb)
+
+# Desvio do resíduo
+desvio_residuo_nb <- sqrt(deviance(modelo_nb) / df.residual(modelo_nb))
+
+# AIC
+aic_nb <- AIC(modelo_nb)
+
+# AICc (corrigido para amostras pequenas)
+n <- nobs(modelo_nb)
+k <- length(coef(modelo_nb))  # Número de parâmetros (incluindo intercepto)
+aicc_nb <- aic_nb + (2 * k * (k + 1)) / (n - k - 1)
+
+# Montar os resultados em um data.frame
+tabela_ajuste_nb <- data.frame(
+  Estatística = c(
+    "Log-verossimilhança",
+    "Pseudo R² (McFadden)",
+    "Desvio Residual",
+    "AIC",
+    "AICc"
+  ),
+  Valor = c(
+    round(loglik_nb, 3),
+    round(pseudo_r2_nb, 4),
+    round(desvio_residual_nb, 4),
+    round(aic_nb, 3),
+    round(aicc_nb, 3)
+  )
+)
+
+print(tabela_ajuste_nb)
+```
+
+
+### Análise de resíduos - Envelope simulado
+```{r,echo= FALSE, message= FALSE}
+fit.model = modelo_nb
+attach(dados_modelo)
+
+# Caminho de saída
+output_file <- file.path(output_dir, "envelope_negbin.png")
+
+png(output_file, width = 800, height = 800, res = 150)
+source("~/Documents/GitHub/dissertacao/analise/arquivos_auxiliares/envel_nbin")
+dev.off()
+
+knitr::include_graphics(output_file)
+```
+
+
+### Análise de resíduos - Distribuição
+```{r, echo=FALSE}
+library(ggspatial)  # certifique-se de ter este pacote carregado
+
+residuos_model <- residuals(modelo_nb, type = "deviance")
+dados$residuos <- residuos_model
+
+p <- ggplot(dados) +
+  geom_sf(aes(fill = residuos)) +
+  scale_fill_gradient2(
+    midpoint = median(dados$residuos, na.rm = TRUE),
+    low = "blue",
+    mid = "white",
+    high = "red",
+    name = NULL
+  ) +
+  annotation_scale(
+    location = "br",
+    width_hint = 0.25,
+    pad_x = unit(0.2, "cm"),
+    pad_y = unit(0.2, "cm")
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_blank(),
+    panel.grid = element_line(color = "grey90", size = 0.2),
+    legend.position = "right",
+    legend.title = element_blank(),
+    legend.text = element_text(size = 9)
+  )
+
+caminho_saida <- "~/Documents/GitHub/dissertacao/analise/output/plots_output/mapa_residuos_negbin.png"
+ggsave(caminho_saida, plot = p, width = 8, height = 6, dpi = 300, bg = "white")
+
+p
+
+
+```
+  
+### Análise de resíduos - índice de Moran
+
+```{r,echo= FALSE, message= FALSE}
+residuos_model <- residuals(modelo_nb, type = "deviance")
+coordenadas <- cbind(dados$long_utm, dados$lat_utm)
+
+vizinhanca <- knn2nb(knearneigh(coordenadas, k = 4))
+lista_pesos <- nb2listw(vizinhanca, style = "W")
+
+moran_glm <- moran.mc(residuos_model, listw = lista_pesos, nsim = 999)
+
+moran_table <- data.frame(
+  Estatistica = round(moran_glm$statistic, 4),
+  p.valor = round(moran_glm$p.value, 4)
+)
+
+kable(moran_table, format = "markdown", 
+      caption = "Índice de Moran dos Resíduos")
+
+```
+
+### LISA
+
+```{r}
+
+library(spdep)
+library(sf)
+library(ggplot2)
+
+# Defina vizinhança com objeto 'dados' (objeto sf)
+vizinhos <- poly2nb(dados)              
+lista_pesos <- nb2listw(vizinhos, style = "W")  
+
+# Calcular Local Moran para variável 'residuo' (ou ajuste para VF_2018_2022 se for essa)
+lisa <- localmoran(dados$VF_2018_2022, lista_pesos)
+
+# Adicionar resultados LISA ao 'dados'
+dados$lisa_I <- lisa[,1]
+dados$lisa_pvalue <- lisa[,5]
+
+# Calcular média da variável resposta para referência (exemplo para VF_2018_2022)
+media_resp <- mean(dados$VF_2018_2022, na.rm = TRUE)
+
+# Função para classificar clusters LISA
+classifica_lisa <- function(x, lisa_I, pval, media, alpha=0.1) {
+  if (pval > alpha) return("Não significativo")
+  if (x >= media && lisa_I > 0) return("High-High")
+  if (x < media && lisa_I > 0) return("Low-Low")
+  if (x >= media && lisa_I < 0) return("High-Low")
+  if (x < media && lisa_I < 0) return("Low-High")
+  return("Não classificado")
+}
+
+dados$lisa_grupo <- mapply(classifica_lisa,
+                           dados$VF_2018_2022,
+                           dados$lisa_I,
+                           dados$lisa_pvalue,
+                           MoreArgs = list(media=media_resp, alpha=0.1))
+
+# Definir cores
+cores_lisa <- c(
+  "High-High" = "#b2182b",
+  "Low-Low" = "#2166ac",
+  "High-Low" = "#fddb6d",
+  "Low-High" = "#44ba4a",
+  "Não significativo" = "#f7f7f7"
+)
+
+# Plot com ggplot2, atualizando 'size' para 'linewidth'
+mapa_lisa <- ggplot(dados) +
+  geom_sf(aes(fill = lisa_grupo), color = "#cccccc", linewidth = 0.3) +
+  scale_fill_manual(values = cores_lisa, name = "Grupo LISA") +
+  theme_minimal() +
+  labs(title = "Mapa LISA - Grupos Locais de Autocorrelação")
+
+# Salvar imagem
+ggsave(filename = "~/Documents/GitHub/dissertacao/analise/output/plots_output/mapa_lisa_contagem.png",
+       plot = mapa_lisa,
+       width = 8, height = 6, units = "in", dpi = 300)
+
+ggplot(dados) +
+  geom_sf(aes(fill = lisa_grupo), color = "#cccccc", linewidth = 0.3) +
+  scale_fill_manual(values = cores_lisa, name = "Grupo LISA") +
+  theme_minimal() +
+  labs(title = "Mapa LISA - Grupos Locais de Autocorrelação")
+```
+
+
+
+
+```{r}
+
+# Defina vizinhança com objeto 'dados' (objeto sf)
+vizinhos <- poly2nb(dados)              
+lista_pesos <- nb2listw(vizinhos, style = "W")  
+
+# Calcular Local Moran para variável 'residuo' (ou ajuste para VF_2018_2022 se for essa)
+lisa <- localmoran(dados$taxa_pad_vf, lista_pesos)  
+
+# Adicionar resultados LISA ao 'dados'
+dados$lisa_I <- lisa[,1]
+dados$lisa_pvalue <- lisa[,5]
+
+# Calcula média da variável resposta para referência
+media_resp <- mean(dados$taxa_pad_vf, na.rm = TRUE)
+
+# Função para classificar clusters
+classifica_lisa <- function(x, lisa_I, pval, media, alpha=0.1) {
+  if (pval > alpha) return("Não significativo")
+  if (x >= media && lisa_I > 0) return("High-High")
+  if (x < media && lisa_I > 0) return("Low-Low")
+  if (x >= media && lisa_I < 0) return("High-Low")
+  if (x < media && lisa_I < 0) return("Low-High")
+  return("Não classificado")
+}
+
+dados$lisa_grupo <- mapply(classifica_lisa,
+                           dados$taxa_pad_vf,
+                           dados$lisa_I,
+                           dados$lisa_pvalue,
+                           MoreArgs = list(media=media_resp, alpha=0.1))
+
+# Define cores para os grupos
+cores_lisa <- c(
+  "High-High" = "#b2182b",
+  "Low-Low" = "#2166ac",
+  "High-Low" = "#fddb6d",
+  "Low-High" = "#44ba4a",
+  "Não significativo" = "#f7f7f7"
+)
+
+library(ggplot2)
+mapa_lisa <- ggplot(dados) +
+  geom_sf(aes(fill = lisa_grupo), color = "#cccccc", linewidth = 0.3) +  # corrigido aqui
+  scale_fill_manual(values = cores_lisa, name = "Grupo LISA") +
+  theme_minimal() +
+  labs(title = "")
+
+# Mostrar o gráfico
+print(mapa_lisa)
+
+# Salvar figura no caminho desejado em PNG
+ggsave(filename = "~/Documents/GitHub/dissertacao/analise/output/plots_output/mapa_lisa_tx_pad.png",
+       plot = mapa_lisa,
+       width = 8, height = 6, units = "in", dpi = 300)
+
+
+```
+
+
+### Calculo do excesso de zeros
+
+```{r echo=FALSE}
+mu_hat <- predict(modelo_nb, type = "response")
+theta <- modelo_nb$theta
+expected_zeros <- sum((theta / (theta + mu_hat))^theta)
+observed_zeros <- sum(dados_modelo$VF_2018_2022 == 0)
+
+tabela_zeros <- data.frame(
+  Indicador = c("Zeros Observados", "Zeros Esperados (Binomial Negativa)"),
+  Valor = c(observed_zeros, round(expected_zeros, 2))
+)
+
+kable(
+  tabela_zeros,
+  format = "markdown",
+  booktabs = TRUE,
+  caption = "Comparação entre o número de zeros observados e o número de zeros esperados pelo modelo Binomial Negativa"
+)
+```
+
+
+
+
+
+## GWR Com resposta bin negativa (pacote gwzinbr)
+
+### Avalicao das larguras de banda
+
+#### Com igrejas 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#install.packages("gwzinbr")
+library(gwzinbr)
+library(sp)
+
+#casos_viol_fis_2018_2022 ~ rendap + comodo + plmenos1 +ate1mora+mulher_resp+igrejas+degradada+offset(log(E)
+## Modelo
+dados_modelo_bn = as.data.frame(dados)
+for (var in c("comodo", "plmenos1", "composta",
+                         "mais5", "mulher_resp" ,"degradada","igrejas")){
+  dados_modelo_bn[, var] <- as.data.frame(scale(dados_modelo_bn[, var]))
+}
+
+
+gss_adaptativo_aic <- Golden(data = dados_modelo_bn,
+formula = VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp+igrejas, 
+lat = "lat_utm", long = "long_utm",
+offset = "log_casos_esp_vf", model = "negbin", method = "adaptive_bsq",
+bandwidth = "aic", globalmin = TRUE, distancekm = FALSE,
+force=TRUE)  
+gss_adaptativo_aic_igrejas = gss_adaptativo_aic
+
+gss_adaptativo_cv <- Golden(data = dados_modelo_bn,
+formula = VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp+igrejas, 
+lat = "lat_utm", long = "long_utm",
+offset = "log_casos_esp_vf", model = "negbin", method = "adaptive_bsq",
+bandwidth = "cv", globalmin = TRUE, distancekm = FALSE,
+force=TRUE)  
+
+gss_adaptativo_cv_igrejas = gss_adaptativo_cv
+
+gss_fix_aic <- Golden(data = dados_modelo_bn,
+formula = VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp+igrejas, 
+lat = "lat_utm", long = "long_utm",
+offset = "log_casos_esp_vf", model = "negbin", method = "fixed_g",
+bandwidth = "aic", globalmin = TRUE, distancekm = FALSE,
+force=TRUE)  
+
+gss_fix_aic_igrejas = gss_fix_aic
+
+gss_fix_cv <- Golden(data = dados_modelo_bn,
+formula = VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp+igrejas, 
+lat = "lat_utm", long = "long_utm",
+offset = "log_casos_esp_vf", model = "negbin", method = "fixed_g",
+bandwidth = "cv", globalmin = TRUE, distancekm = FALSE,
+force=TRUE)  
+
+gss_fix_cv_igrejas = gss_fix_cv
+
+# gss_fixed <- Golden(data = dados_modelo_bn,
+# formula = VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp, 
+# lat = "lat_utm", long = "long_utm",
+# offset = "log_casos_esp_vf", model = "negbin", method = "fixed_g",
+# bandwidth = "aic", globalmin = TRUE, distancekm = FALSE,
+# force=TRUE)  
+# print(gss)
+
+#gss$min_bandwidth ### 67 - utilizando cv e 70 utilizando aic
+
+# 
+# modelo_negbin <- gwzinbr(data = dados_modelo_bn,
+# formula = VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp+igreja_mil_hab,
+# lat = "lat_utm", long = "long_utm",offset = "log_casos_esp_vf", method = "adaptive_bsq",
+# model = "negbin", force=TRUE,distancekm = FALSE,h=64)
+
+
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+
+## 1) Adaptativo - CV (seu exemplo: iter_aic_ad é na verdade CV)
+
+iter_cv_ad <- gss_adaptativo_cv$iterations
+minb_cv_ad <- gss_adaptativo_cv$min_bandwidth
+
+dat_cv_ad <- bind_rows(
+  iter_cv_ad %>%
+    transmute(GSS_count, h = h1, crit = cv1),
+  iter_cv_ad %>%
+    transmute(GSS_count, h = h2, crit = cv2)
+) %>%
+  arrange(h)
+
+g_cv_ad <- ggplot(dat_cv_ad, aes(x = h, y = crit)) +
+  geom_point() +
+  geom_line() +
+  labs(x = "Largura da banda (h)", y = "CV",
+       title = "Banda adaptativa (CV)") +
+  theme_minimal()
+
+tab_cv_ad <- as.data.frame(minb_cv_ad)
+colnames(tab_cv_ad) <- paste0("col_", seq_len(ncol(tab_cv_ad)))
+
+t_cv_ad <- tableGrob(tab_cv_ad, rows = NULL)
+
+grid.arrange(g_cv_ad, t_cv_ad, ncol = 2, widths = c(2.5, 1))
+
+## 2) Adaptativo - AIC
+
+iter_aic_ad <- gss_adaptativo_aic$iterations
+minb_aic_ad <- gss_adaptativo_aic$min_bandwidth
+
+dat_aic_ad <- bind_rows(
+  iter_aic_ad %>%
+    transmute(GSS_count, h = h1, crit = cv1),
+  iter_aic_ad %>%
+    transmute(GSS_count, h = h2, crit = cv2)
+) %>%
+  arrange(h)
+
+g_aic_ad <- ggplot(dat_aic_ad, aes(x = h, y = crit)) +
+  geom_point() +
+  geom_line() +
+  labs(x = "Largura da banda (h)", y = "AIC",
+       title = "Banda adaptativa (AIC)") +
+  theme_minimal()
+
+tab_aic_ad <- as.data.frame(minb_aic_ad)
+colnames(tab_aic_ad) <- paste0("col_", seq_len(ncol(tab_aic_ad)))
+
+t_aic_ad <- tableGrob(tab_aic_ad, rows = NULL)
+
+grid.arrange(g_aic_ad, t_aic_ad, ncol = 2, widths = c(2.5, 1))
+
+## 3) Fixa - CV
+
+iter_cv_fix <- gss_fix_cv$iterations
+minb_cv_fix <- gss_fix_cv$min_bandwidth
+
+dat_cv_fix <- bind_rows(
+  iter_cv_fix %>%
+    transmute(GSS_count, h = h1, crit = cv1),
+  iter_cv_fix %>%
+    transmute(GSS_count, h = h2, crit = cv2)
+) %>%
+  arrange(h)
+
+g_cv_fix <- ggplot(dat_cv_fix, aes(x = h, y = crit)) +
+  geom_point() +
+  geom_line() +
+  labs(x = "Largura da banda (h)", y = "CV",
+       title = "Banda fixa (CV)") +
+  theme_minimal()
+
+tab_cv_fix <- as.data.frame(minb_cv_fix)
+colnames(tab_cv_fix) <- paste0("col_", seq_len(ncol(tab_cv_fix)))
+
+t_cv_fix <- tableGrob(tab_cv_fix, rows = NULL)
+
+grid.arrange(g_cv_fix, t_cv_fix, ncol = 2, widths = c(2.5, 1))
+
+## 4) Fixa - AIC
+
+iter_aic_fix <- gss_fix_aic$iterations
+minb_aic_fix <- gss_fix_aic$min_bandwidth
+
+dat_aic_fix <- bind_rows(
+  iter_aic_fix %>%
+    transmute(GSS_count, h = h1, crit = cv1),
+  iter_aic_fix %>%
+    transmute(GSS_count, h = h2, crit = cv2)
+) %>%
+  arrange(h)
+
+g_aic_fix <- ggplot(dat_aic_fix, aes(x = h, y = crit)) +
+  geom_point() +
+  geom_line() +
+  labs(x = "Largura da banda (h)", y = "AIC",
+       title = "Banda fixa (AIC)") +
+  theme_minimal()
+
+tab_aic_fix <- as.data.frame(minb_aic_fix)
+colnames(tab_aic_fix) <- paste0("col_", seq_len(ncol(tab_aic_fix)))
+
+t_aic_fix <- tableGrob(tab_aic_fix, rows = NULL)
+
+grid.arrange(g_aic_fix, t_aic_fix, ncol = 2, widths = c(2.5, 1))
+
+
+```
+
+#### Sem igrejas 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#install.packages("gwzinbr")
+library(gwzinbr)
+library(sp)
+
+#casos_viol_fis_2018_2022 ~ rendap + comodo + plmenos1 +ate1mora+mulher_resp+igrejas+degradada+offset(log(E)
+## Modelo
+dados_modelo_bn = as.data.frame(dados)
+for (var in c("comodo", "plmenos1", "composta",
+                         "mais5", "mulher_resp" ,"degradada","igrejas")){
+  dados_modelo_bn[, var] <- as.data.frame(scale(dados_modelo_bn[, var]))
+}
+
+
+gss_adaptativo_aic <- Golden(data = dados_modelo_bn,
+formula = VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp, 
+lat = "lat_utm", long = "long_utm",
+offset = "log_casos_esp_vf", model = "negbin", method = "adaptive_bsq",
+bandwidth = "aic", globalmin = TRUE, distancekm = FALSE,
+force=TRUE)  
+
+gss_adaptativo_cv <- Golden(data = dados_modelo_bn,
+formula = VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp, 
+lat = "lat_utm", long = "long_utm",
+offset = "log_casos_esp_vf", model = "negbin", method = "adaptive_bsq",
+bandwidth = "cv", globalmin = TRUE, distancekm = FALSE,
+force=TRUE)  
+
+gss_fix_aic <- Golden(data = dados_modelo_bn,
+formula = VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp, 
+lat = "lat_utm", long = "long_utm",
+offset = "log_casos_esp_vf", model = "negbin", method = "fixed_g",
+bandwidth = "aic", globalmin = TRUE, distancekm = FALSE,
+force=TRUE)  
+
+gss_fix_cv <- Golden(data = dados_modelo_bn,
+formula = VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp, 
+lat = "lat_utm", long = "long_utm",
+offset = "log_casos_esp_vf", model = "negbin", method = "fixed_g",
+bandwidth = "cv", globalmin = TRUE, distancekm = FALSE,
+force=TRUE)  
+
+
+# gss_fixed <- Golden(data = dados_modelo_bn,
+# formula = VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp, 
+# lat = "lat_utm", long = "long_utm",
+# offset = "log_casos_esp_vf", model = "negbin", method = "fixed_g",
+# bandwidth = "aic", globalmin = TRUE, distancekm = FALSE,
+# force=TRUE)  
+# print(gss)
+
+#gss$min_bandwidth ### 67 - utilizando cv e 70 utilizando aic
+
+# 
+# modelo_negbin <- gwzinbr(data = dados_modelo_bn,
+# formula = VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp+igreja_mil_hab,
+# lat = "lat_utm", long = "long_utm",offset = "log_casos_esp_vf", method = "adaptive_bsq",
+# model = "negbin", force=TRUE,distancekm = FALSE,h=64)
+
+
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+
+## 1) Adaptativo - CV (seu exemplo: iter_aic_ad é na verdade CV)
+
+iter_cv_ad <- gss_adaptativo_cv$iterations
+minb_cv_ad <- gss_adaptativo_cv$min_bandwidth
+
+dat_cv_ad <- bind_rows(
+  iter_cv_ad %>%
+    transmute(GSS_count, h = h1, crit = cv1),
+  iter_cv_ad %>%
+    transmute(GSS_count, h = h2, crit = cv2)
+) %>%
+  arrange(h)
+
+g_cv_ad <- ggplot(dat_cv_ad, aes(x = h, y = crit)) +
+  geom_point() +
+  geom_line() +
+  labs(x = "Largura da banda (h)", y = "CV",
+       title = "Banda adaptativa (CV)") +
+  theme_minimal()
+
+tab_cv_ad <- as.data.frame(minb_cv_ad)
+colnames(tab_cv_ad) <- paste0("col_", seq_len(ncol(tab_cv_ad)))
+
+t_cv_ad <- tableGrob(tab_cv_ad, rows = NULL)
+
+grid.arrange(g_cv_ad, t_cv_ad, ncol = 2, widths = c(2.5, 1))
+
+## 2) Adaptativo - AIC
+
+iter_aic_ad <- gss_adaptativo_aic$iterations
+minb_aic_ad <- gss_adaptativo_aic$min_bandwidth
+
+dat_aic_ad <- bind_rows(
+  iter_aic_ad %>%
+    transmute(GSS_count, h = h1, crit = cv1),
+  iter_aic_ad %>%
+    transmute(GSS_count, h = h2, crit = cv2)
+) %>%
+  arrange(h)
+
+g_aic_ad <- ggplot(dat_aic_ad, aes(x = h, y = crit)) +
+  geom_point() +
+  geom_line() +
+  labs(x = "Largura da banda (h)", y = "AIC",
+       title = "Banda adaptativa (AIC)") +
+  theme_minimal()
+
+tab_aic_ad <- as.data.frame(minb_aic_ad)
+colnames(tab_aic_ad) <- paste0("col_", seq_len(ncol(tab_aic_ad)))
+
+t_aic_ad <- tableGrob(tab_aic_ad, rows = NULL)
+
+grid.arrange(g_aic_ad, t_aic_ad, ncol = 2, widths = c(2.5, 1))
+
+## 3) Fixa - CV
+
+iter_cv_fix <- gss_fix_cv$iterations
+minb_cv_fix <- gss_fix_cv$min_bandwidth
+
+dat_cv_fix <- bind_rows(
+  iter_cv_fix %>%
+    transmute(GSS_count, h = h1, crit = cv1),
+  iter_cv_fix %>%
+    transmute(GSS_count, h = h2, crit = cv2)
+) %>%
+  arrange(h)
+
+g_cv_fix <- ggplot(dat_cv_fix, aes(x = h, y = crit)) +
+  geom_point() +
+  geom_line() +
+  labs(x = "Largura da banda (h)", y = "CV",
+       title = "Banda fixa (CV)") +
+  theme_minimal()
+
+tab_cv_fix <- as.data.frame(minb_cv_fix)
+colnames(tab_cv_fix) <- paste0("col_", seq_len(ncol(tab_cv_fix)))
+
+t_cv_fix <- tableGrob(tab_cv_fix, rows = NULL)
+
+grid.arrange(g_cv_fix, t_cv_fix, ncol = 2, widths = c(2.5, 1))
+
+## 4) Fixa - AIC
+
+iter_aic_fix <- gss_fix_aic$iterations
+minb_aic_fix <- gss_fix_aic$min_bandwidth
+
+dat_aic_fix <- bind_rows(
+  iter_aic_fix %>%
+    transmute(GSS_count, h = h1, crit = cv1),
+  iter_aic_fix %>%
+    transmute(GSS_count, h = h2, crit = cv2)
+) %>%
+  arrange(h)
+
+g_aic_fix <- ggplot(dat_aic_fix, aes(x = h, y = crit)) +
+  geom_point() +
+  geom_line() +
+  labs(x = "Largura da banda (h)", y = "AIC",
+       title = "Banda fixa (AIC)") +
+  theme_minimal()
+
+tab_aic_fix <- as.data.frame(minb_aic_fix)
+colnames(tab_aic_fix) <- paste0("col_", seq_len(ncol(tab_aic_fix)))
+
+t_aic_fix <- tableGrob(tab_aic_fix, rows = NULL)
+
+grid.arrange(g_aic_fix, t_aic_fix, ncol = 2, widths = c(2.5, 1))
+
+
+```
+```{r}
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+resumo_bandwidth <- tibble::tibble(
+  cenario = c("Com igrejas", "Com igrejas", "Com igrejas", "Com igrejas",
+              "Sem igrejas", "Sem igrejas", "Sem igrejas", "Sem igrejas"),
+  metodo  = c("Adaptativa", "Adaptativa", "Fixa", "Fixa",
+              "Adaptativa", "Adaptativa", "Fixa", "Fixa"),
+  criterio = c("CV", "AIC", "CV", "AIC",
+               "CV", "AIC", "CV", "AIC"),
+  h_min = c(
+    gss_adaptativo_cv_igrejas$min_bandwidth[1],
+    gss_adaptativo_aic_igrejas$min_bandwidth[1],
+    gss_fix_cv_igrejas$min_bandwidth[1],
+    gss_fix_aic_igrejas$min_bandwidth[1],
+    gss_adaptativo_cv$min_bandwidth[1],
+    gss_adaptativo_aic$min_bandwidth[1],
+    gss_fix_cv$min_bandwidth[1],
+    gss_fix_aic$min_bandwidth[1]
+  )
+)
+
+resumo_bandwidth |>
+  kable(digits = 2,
+        col.names = c("Cenário", "Método", "Critério", "h mínimo")) |>
+  kable_styling(full_width = FALSE)
+
+```
+
+```{r}
+
+modelo_negbin <- gwzinbr(data = dados_modelo_bn,
+formula = VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp+igreja_mil_hab,
+lat = "lat_utm", long = "long_utm",offset = "log_casos_esp_vf", method = "adaptive_bsq",
+model = "negbin", force=TRUE,distancekm = FALSE,h=12)
+
+
+```
+
+```{r eval=FALSE, include=FALSE}
+library(dplyr)
+
+dados_modelo_bn %>% 
+  dplyr::select(
+    VF_2018_2022,
+    comodo,
+    composta,
+    mais5,
+    mulher_resp,
+    igrejas,
+    lat_utm,
+    long_utm,
+    log_casos_esp_vf
+  ) %>% 
+  write.csv("dados.csv", row.names = FALSE)
+```
+
+
+```{r}
+
+library(ggplot2)
+
+gss_adaptativo_aic <- Golden(data = dados_modelo_bn,
+formula = VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp, 
+lat = "lat_utm", long = "long_utm",
+offset = "log_casos_esp_vf", model = "negbin", method = "adaptive_bsq",
+bandwidth = "aic", globalmin = TRUE, distancekm = FALSE,
+force=TRUE)  
+
+# Formatar para long caso necessário:
+iterations <- gss_adaptativo_aic$iterations
+iterations_long <- data.frame(
+  iter = rep(iterations$GSS_count, 2),
+  h = c(iterations$h1, iterations$h2),
+  cv = c(iterations$cv1, iterations$cv2)
+)
+
+library(ggplot2)
+library(ggplot2)
+grafico_banda = ggplot(iterations_long, aes(x = h, y = cv)) +
+  geom_point() +
+  geom_line() +
+  labs(x = "Largura da banda (h)", y = "AIC") +
+  theme_minimal()
+
+ggsave(filename = "~/Documents/GitHub/dissertacao/analise/output/plots_output/grafico_banda_adaptative_aic.png",
+       plot = grafico_banda,
+       width = 8, height = 6, units = "in", dpi = 300)
+
+ggplot(iterations_long, aes(x = h, y = cv)) +
+  geom_point() +
+  geom_line() +
+  labs(x = "Largura da banda (h)", y = "AIC") +
+  theme_minimal()
+
+```
+
+
+
+
+```{r echo=FALSE}
+# Métricas principais
+measures <- modelo_negbin$measures
+
+# Para binomial negativa, geralmente:
+desvio <- measures["deviance"]
+AIC <- measures["AIC"]
+AICc <- measures["AICc"]
+R2 <- measures["pct_ll"]
+R2_ajustado <- measures["adj_pct_ll"]
+
+# Exemplo de tabela resumida
+tabela_ajuste <- data.frame(
+  Estatística = c("Deviance", "AIC", "AICc", "Pseudo R²", "Pseudo R² ajustado"),
+  Valor = round(c(desvio, AIC, AICc, R2, R2_ajustado), 3)
+)
+
+# Visualização com knitr
+knitr::kable(tabela_ajuste, format = "markdown",
+             caption = "Indicadores de ajuste do modelo Binomial Negativa (gwzinbr)",row.names = FALSE)
+```
+
+### Parametros Estimados (geral)
+
+```{r echo=FALSE}
+library(ggplot2)
+library(dplyr)
+library(purrr)
+
+# Parâmetros do modelo
+param_df <- as.data.frame(modelo_negbin$parameter_estimates)
+parametros <- c("Intercept", "comodo", "composta", "mais5", "mulher_resp")
+
+# Adiciona os parâmetros ao objeto 'dados'
+for (param in parametros) {
+  dados[[paste0("param_", param)]] <- as.numeric(param_df[[param]])
+}
+
+# Adiciona o alpha
+alpha_vec <- as.numeric(modelo_negbin$alpha_estimates[, "alpha"])
+dados[["param_alpha"]] <- alpha_vec
+
+# Atualiza a lista de parâmetros com o alpha
+parametros_com_alpha <- c(parametros, "alpha")
+```
+
+
+```{r echo=FALSE}
+# Salva os mapas como PNG
+walk(parametros_com_alpha, function(param) {
+  var_plot <- paste0("param_", param)
+  plot <- ggplot(dados) +
+    geom_sf(aes(fill = .data[[var_plot]])) +
+    scale_fill_gradient2(
+      low = "blue",
+      mid = "white",
+      high = "red",
+      midpoint = 0,
+      name = param
+    ) +
+    theme_minimal() +
+    labs(title = paste("Estimativa do Parâmetro:", param))
+
+  # Caminho do arquivo
+  file_path <- file.path(output_dir, paste0("mapa_param_gwr_bn_", param, ".png"))
+
+  # Salva o gráfico
+  ggsave(filename = file_path, plot = plot, width = 6, height = 5, dpi = 300)
+})
+
+# Gera os plots no RMarkdown
+mapas_parametros <- map(parametros_com_alpha, function(param) {
+  var_plot <- paste0("param_", param)
+  ggplot(dados) +
+    geom_sf(aes(fill = .data[[var_plot]])) +
+    scale_fill_gradient2(
+      low = "blue",
+      mid = "white",
+      high = "red",
+      midpoint = 0,
+      name = param
+    ) +
+    theme_minimal() +
+    labs(title = paste("Estimativa do Parâmetro:", param))
+})
+
+# Exibe todos os mapas
+walk(mapas_parametros, print)
+
+```
+
+
+
+
+### Análise de resíduos - Distribuição (saida do pacote)
+```{r, echo=FALSE}
+residuos_negbin = modelo_negbin$residuals[,5]
+dados$residuos = as.numeric(residuos_negbin)
+p <-ggplot(dados)+geom_sf(aes(fill = residuos))+
+  scale_fill_gradient2(midpoint =median(dados$residuos, na.rm = TRUE),low = "blue", mid = "white", high = "red",name = "Residuos")+
+    annotation_scale(
+    location = "br",
+    width_hint = 0.25,
+    pad_x = unit(0.2, "cm"),
+    pad_y = unit(0.2, "cm")
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_blank(),
+    panel.grid = element_line(color = "grey90", size = 0.2),
+    legend.position = "right",
+    legend.title = element_blank(),
+    legend.text = element_text(size = 9)
+  )
+caminho_saida <- "~/Documents/GitHub/dissertacao/analise/output/plots_output/mapa_residuos_gwr_negbin.png"
+
+# Salva a figura
+ggsave(caminho_saida, plot = p, width = 8, height = 6, dpi = 300, bg = "white")
+
+# Exibe no RMarkdown
+
+plot(p)
+```
+
+### Parametros Estimados (significativos)
+
+
+```{r echo=FALSE}
+library(ggplot2)
+library(dplyr)
+library(purrr)
+library(scales)
+library(grid)
+library(sf)
+
+# Conversão para data.frame
+param_df <- as.data.frame(modelo_negbin$parameter_estimates)
+# Lista de parâmetros a mapear (incluindo alpha)
+parametros <- c("Intercept", "comodo", "composta",
+                "mais5", "mulher_resp")
+# Rótulos mais claros para os parâmetros (legendas e títulos)
+labels_parametros <- c(
+  "Intercept" = "Intercepto",
+  "comodo" = "Hab. Coletiva",
+  "composta" = "Composta",
+  "mais5" = "5+ Moradores",
+  "mulher_resp" = "Mulher Resp.",
+  "igreja_mil_hab" = "Igrejas/1000 hab.",
+  "alpha" = "Alpha (Superdispersão)"
+)
+
+# Adiciona colunas ao objeto `dados` com as estimativas e significâncias
+for (param in parametros) {
+  dados[[paste0("param_", param)]] <- as.numeric(param_df[[param]])
+  dados[[paste0("sig_", param)]] <- param_df[[paste0("sig_", param)]]
+}
+# Adiciona estimativas e significâncias de alpha
+alpha_df <- as.data.frame(modelo_negbin$alpha_estimates)
+dados$param_alpha <- as.numeric(alpha_df$alpha)
+dados$sig_alpha <- alpha_df$sig_alpha
+
+# Diretório de saída para salvar os mapas
+output_dir <- "~/Documents/GitHub/dissertacao/analise/output/plots_output"
+if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+
+
+cores_significancia <- c(
+  "não significativo a 10%" = "#000",  # Não será usada como fill, só como cor de contorno
+  "significativo a 10%" = "#000"          # Cor de contorno para sig, mas fill será gradiente
+)
+
+# Função auxiliar para deixar só 2 categorias
+traduz_significancia <- function(sig) {
+  dplyr::case_when(
+    grepl("not significant at 90%", sig) ~ "não significativo a 10%",
+    grepl("significant at 90%", sig) ~ "significativo a 10%",
+    grepl("significant at 95%", sig) ~ "significativo a 10%",
+    grepl("significant at 99%", sig) ~ "significativo a 10%",
+    TRUE ~ sig
+  )
+}
+
+for (param in parametros) {
+  dados[[paste0("sig_", param)]] <- traduz_significancia(dados[[paste0("sig_", param)]])
+}
+dados$sig_alpha <- traduz_significancia(dados$sig_alpha)
+
+# Função de plot: só preenche com azul/vermelho quem é significativo, branco caso contrário
+walk(c(parametros, "alpha"), function(param) {
+  var_est <- paste0("param_", param)
+  var_sig <- paste0("sig_", param)
+  nome_legenda <- labels_parametros[[param]]
+
+  # Cria variável auxiliar que aplica as regras de cor de preenchimento:
+  dados$cor_fill <- ifelse(
+    dados[[var_sig]] == "significativo a 10%",
+    dados[[var_est]],  # usa valor estimado p/ gradiente
+    NA                 # NA para escala de preenchimento ggplot, depois pinta de branco via scale
+  )
+
+  p <- ggplot(dados) +
+    geom_sf(
+      aes(fill = cor_fill),
+      color = "#f7f7f7",    # contorno sempre cinza claro
+      size = 0.39
+    ) +
+    # NAs (não significativos) ficam brancos no fill
+    scale_fill_gradient2(
+      low = "#2166ac", high = "#b2182b", midpoint = 0,
+      name = NULL, na.value = "grey90"
+    ) +
+    # Opcional: camada dos contornos categorizados por significância (se quiser manter a borda reforçada nas sig.), senão remova
+    # geom_sf(
+    #   aes(color = .data[[var_sig]]), fill = NA, size = 0.6
+    # ) +
+    # scale_color_manual(values = cores_significancia, name = NULL, guide = "none") +
+    annotation_scale(
+      location = "br",
+      width_hint = 0.25,
+      pad_x = unit(0.2, "cm"),
+      pad_y = unit(0.2, "cm")
+    ) +
+    theme_minimal() +
+    theme(
+      panel.grid = element_line(color = "grey90", size = 0.2),
+      legend.position = "right",
+      legend.box = "vertical",
+      legend.title = element_blank(),
+      legend.text = element_text(size = 9),
+      plot.title = element_blank()
+    ) +
+    guides(
+      fill = guide_colorbar(order = 1, title.position = "top", title.hjust = 0.5)
+    )
+
+  filename <- file.path(output_dir, paste0("mapa_param_gwr_bn_", param, ".png"))
+  ggsave(filename = filename, plot = p, width = 10, height = 7.5, dpi = 300, bg = "white")
+
+  print(p)
+})
+
+```
+
+
+
+
+### Índice de Moran
+
+```{r, echo=FALSE}
+coordenadas <- cbind(dados_modelo$long_utm, dados_modelo$lat_utm)
+
+vizinhanca <- knn2nb(knearneigh(coordenadas, k = 4))
+lista_pesos <- nb2listw(vizinhanca, style = "W")
+
+moran_gwr <- moran.mc(residuos_negbin, listw = lista_pesos, nsim = 999)
+
+moran_table <- data.frame(
+  Estatistica = round(moran_gwr$statistic, 4),
+  p.valor = round(moran_gwr$p.value, 4)
+)
+
+kable(moran_table, format = "markdown", 
+      caption = "Índice de Moran dos Resíduos")
+
+#renda ou pelo menos 1, ate1mora, comodo, degrada, mulher_resp
+```
+
+
+
+### GWZINBR utilizando o modelo inflacionado em zeros
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+
+#install.packages("gwzinbr")
+#library(gwzinbr)
+#library(sp)
+source("~/Documents/GitHub/dissertacao/analise/gwzinbr_editado.R")
+######utilizando o pacote localmente
+
+
+#casos_viol_fis_2018_2022 ~ rendap + comodo + plmenos1 +ate1mora+mulher_resp+igrejas+degradada+offset(log(E)
+## Modelo
+dados_modelo_bn = as.data.frame(dados)
+for (var in c("comodo", "plmenos1", "composta",
+                         "mais5", "mulher_resp", "bares_mil_hab" ,"degradada","igreja_mil_hab")){
+  dados_modelo_bn[, var] <- as.data.frame(scale(dados_modelo_bn[, var]))
+}
+
+## Modelo
+gss <- Golden(data = dados_modelo_bn,
+formula = VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp+igreja_mil_hab+degradada,xvarinf = c('alfab'),
+lat = "lat_utm", long = "long_utm",
+offset = "log_casos_esp_vf", model = "zinb", method = "adaptive_bsq",
+bandwidth = "cv", globalmin = TRUE, distancekm = FALSE,
+force=FALSE)  
+#print(gss)
+
+#gss$min_bandwidth ### 67 - utilizando cv e 70 utilizando aic
+
+
+modelo_zinb <- gwzinbr(data = dados_modelo_bn,
+formula = VF_2018_2022 ~ comodo  + composta + mais5+ mulher_resp+igreja_mil_hab+degradada,xvarinf = c('alfab'),
+lat = "lat_utm", long = "long_utm",offset = "log_casos_esp_vf", method = "adaptive_bsq",
+model = "zinb", force=FALSE,distancekm = FALSE,h=67)
+
+capture.output(
+  print(modelo_zinb),  # você pode também usar summary(modelo_negbin) se desejar
+  file = "~/Documents/GitHub/dissertacao/analise/output/saida_modelo_zinb.txt"
+)
+
+
+```
+
+
+```{r eval=FALSE, include=FALSE}
+
+mod = modelo_zinb
+
+
+
+# Suponha que 'mod' é o objeto retornado pela gwzinbr
+
+# Extrair os dados observados e ajustados da lista residuals
+dados <- mod$residuals
+
+# Converter colunas relevantes para numérico (caso estejam texto)
+y <- as.numeric(as.character(dados[,"y"]))
+yhat <- as.numeric(as.character(dados[,"yhat"]))
+
+# Obter índice das observações iguais a zero
+pos0 <- which(y == 0)
+
+# Obter alpha (parâmetro) da lista alpha_estimates, convertendo se for caractere
+if ("alpha_estimates" %in% names(mod)) {
+  alpha_vec <- as.numeric(as.character(mod$alpha_estimates[,"alpha"]))
+  # Usar média como parâmetro para todas as observações ou vetor elemento a elemento
+  alpha_val <- mean(alpha_vec, na.rm = TRUE)
+} else {
+  stop("Parâmetro alpha não encontrado no objeto retornado")
+}
+
+# Cálculo do número esperado de zeros para os índices de zero
+# Formula usada: sum( (alpha / (alpha + mu))^alpha )
+num_zeros_esperados <- sum((alpha_val / (alpha_val + yhat[pos0]))^alpha_val)
+
+num_zeros_esperados
+
+
+```
+
+```{r eval=FALSE, include=FALSE}
+# Supondo que o modelo foi ajustado e está no objeto 'modelo_zinb'
+# Extração dos resíduos e probabilidades do componente zero-inflacionado
+residuos <- modelo_zinb$residuals
+
+# Verificar o nome das colunas/resíduos para confirmar estrutura
+head(residuos)
+
+# Valores observados da variável resposta
+y_obs <- residuos[, "y"]
+
+# Probabilidade estimada do zero inflacionado (p_0 do artigo)
+# Conforme o código da função, é transformada por logit, aqui deve estar em escala logit, converta para probabilidade
+# pihat pode estar na forma logit, então aplicar transformação inverse logit
+p_logit <- residuos[, "pihat"]
+p_zero <- exp(p_logit) / (1 + exp(p_logit))
+
+# Identificar as posições dos zeros observados
+pos_zeros <- which(y_obs == 0)
+
+# Contagem de zeros observados
+n_zeros_obs <- length(pos_zeros)
+
+# Soma das probabilidades esperadas de zeros perfeitos segundo o modelo naqueles zeros observados
+n_zeros_esp <- sum(p_zero[pos_zeros])
+
+# Soma das probabilidades esperadas de zeros perfeitos em todo o dataset (esperados totais)
+total_zeros_esp <- sum(p_zero)
+
+# Mostrar resultados
+cat("Número de zeros observados: ", n_zeros_obs, "\n")
+cat("Número esperado de zeros perfeitos no zero observados: ", round(n_zeros_esp, 2), "\n")
+cat("Número esperado total de zeros perfeitos no conjunto: ", round(total_zeros_esp, 2), "\n")
+
+# Comparação detalhada para análise descritiva similar ao artigo
+# Proporção zeros observados que são explicados pelo modelo como zeros perfeitos
+prop_expl_zeros <- n_zeros_esp / n_zeros_obs
+cat("Proporção de zeros observados previstos como zeros perfeitos: ", round(prop_expl_zeros, 3), "\n")
+
+# Se preferir: visualizar discrepâncias e distribuição dos zeros
+library(ggplot2)
+df_comp <- data.frame(
+  y_obs = y_obs,
+  prob_zero = p_zero
+)
+ggplot(df_comp, aes(x = prob_zero, fill = factor(y_obs == 0))) +
+  geom_histogram(position = "identity", alpha = 0.5, bins = 30) +
+  labs(fill = "Zero observado", x = "Probabilidade estimada de zero perfeito",
+       y = "Frequência", title = "Distribuição da probabilidade de zeros perfeitos") +
+  theme_minimal()
+
+# Nota: no artigo, os zeros perfeitos são latent variables estimados iterativamente via EM. Aqui, p_zero representa a estimativa do componente zero inflacionado para cada observação.
+
+
+```
+
+
+```{r eval=FALSE, include=FALSE}
+# Métricas principais
+measures <- modelo_zinb$measures
+
+# Para binomial negativa, geralmente:
+desvio <- measures["deviance"]
+AIC <- measures["AIC"]
+AICc <- measures["AICc"]
+R2 <- measures["pct_ll"]
+R2_ajustado <- measures["adj_pct_ll"]
+
+# Exemplo de tabela resumida
+tabela_ajuste <- data.frame(
+  Estatística = c("Deviance", "AIC", "AICc", "Pseudo R²", "Pseudo R² ajustado"),
+  Valor = round(c(desvio, AIC, AICc, R2, R2_ajustado), 3)
+)
+
+# Visualização com knitr
+knitr::kable(tabela_ajuste, format = "markdown",
+             caption = "Indicadores de ajuste do modelo Binomial Negativa inflacionado em zeros (gwzinbr)",row.names = FALSE)
+```
+
+```{r eval=FALSE, include=FALSE}
+library(ggplot2)
+library(dplyr)
+library(purrr)
+
+# Parâmetros a mapear
+parametros <- c("Intercept", "comodo", "composta",
+                "mais5", "mulher_resp", "degradada", "igreja_mil_hab")
+
+# Extrai estimativas
+param_gwnbr <- as.data.frame(modelo_negbin$parameter_estimates)
+param_gwzinb <- as.data.frame(modelo_zinb$parameter_estimates)
+
+# Adiciona colunas ao objeto `dados`
+for (param in parametros) {
+  dados[[paste0("est_gwnbr_", param)]] <- as.numeric(param_gwnbr[[param]])
+  dados[[paste0("sig_gwnbr_", param)]] <- param_gwnbr[[paste0("sig_", param)]]
+
+  dados[[paste0("est_gwzinb_", param)]] <- as.numeric(param_gwzinb[[param]])
+  dados[[paste0("sig_gwzinb_", param)]] <- param_gwzinb[[paste0("sig_", param)]]
+}
+
+# Gera os mapas um abaixo do outro
+walk(parametros, function(param) {
+  var_gwnbr <- paste0("est_gwnbr_", param)
+  var_sig_gwnbr <- paste0("sig_gwnbr_", param)
+
+  var_gwzinb <- paste0("est_gwzinb_", param)
+  var_sig_gwzinb <- paste0("sig_gwzinb_", param)
+
+  limites <- range(c(dados[[var_gwnbr]], dados[[var_gwzinb]]), na.rm = TRUE)
+
+  # GWNBR com borda de significância
+  p1 <- ggplot(dados) +
+    geom_sf(aes(fill = .data[[var_gwnbr]]), color = NA) +
+    geom_sf(aes(color = .data[[var_sig_gwnbr]]), fill = NA, size = 0.6) +
+    scale_fill_gradient2(
+      low = "#2166ac", mid = "#f7f7f7", high = "#b2182b",
+      midpoint = 0, limits = limites, name = "Coeficiente"
+    ) +
+    scale_color_manual(
+      values = c(
+        "not significant at 90%" = "#CCCCCC",
+        "significant at 90%" = "#888888",
+        "significant at 95%" = "#444444",
+        "significant at 99%" = "#000000"
+      ),
+      name = "Significância"
+    ) +
+    theme_minimal() +
+    labs(title = paste("GWNBR —", param)) +
+    theme(legend.position = "right")
+
+  # GWZINB com borda de significância
+  p2 <- ggplot(dados) +
+    geom_sf(aes(fill = .data[[var_gwzinb]]), color = NA) +
+    geom_sf(aes(color = .data[[var_sig_gwzinb]]), fill = NA, size = 0.6) +
+    scale_fill_gradient2(
+      low = "#2166ac", mid = "#f7f7f7", high = "#b2182b",
+      midpoint = 0, limits = limites, name = "Coeficiente"
+    ) +
+    scale_color_manual(
+      values = c(
+        "not significant at 90%" = "#CCCCCC",
+        "significant at 90%" = "#888888",
+        "significant at 95%" = "#444444",
+        "significant at 99%" = "#000000"
+      ),
+      name = "Significância"
+    ) +
+    theme_minimal() +
+    labs(title = paste("GWZINB —", param)) +
+    theme(legend.position = "right")
+
+  # Exibe os dois mapas sequencialmente
+  print(p1)
+  print(p2)
+})
+
+```
+
+
+
