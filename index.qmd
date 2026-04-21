@@ -178,7 +178,7 @@ componente espacial são necessários.
 ## Código (`script_mestrado.R` — Seção 4)
 
 ```r
-# Distritos sem casos: marcados nos mapas para evitar confusão com áreas vazias
+# Distritos sem casos: marcados nos mapas para evidenciar os locais sem notificação no período
 distritos_sem_casos <- distritos %>% filter(VF_2018_2022 == 0)
 distritos_sem_casos[c("x", "y")] <- st_coordinates(st_centroid(distritos_sem_casos))
 
@@ -410,7 +410,7 @@ knitr::include_graphics(file.path(figuras_dir, "boxplot_robusto_taxa_padronizada
 ## Por que testar autocorrelação espacial?
 O índice de Moran verifica se distritos próximos têm TIPs semelhantes mais do
 que seria esperado ao acaso. Um resultado significativo indica **dependência
-espacial** — o que motiva modelos com componente espacial.
+espacial**.
 :::
 
 ```{r}
@@ -439,8 +439,7 @@ plot(moran_tip, main = "")
 ::: {.callout-important}
 ## Autocorrelação espacial confirmada
 O índice de Moran para a TIP foi de **I = 0,312** (p = 0,001), indicando que
-os casos **não se distribuem aleatoriamente** no espaço. Esse resultado
-justifica o uso de modelos com componente espacial.
+os casos **não se distribuem aleatoriamente** no espaço. 
 :::
 
 ---
@@ -935,15 +934,7 @@ cat("Theta (1/alpha):", round(mod_nb$theta, 4), "\n")
 cat("Alpha (superdispersão = 1/theta):", round(1 / mod_nb$theta, 4), "\n")
 ```
 
-### Teste de razão de verossimilhança (Poisson vs BN)
 
-```{r}
-#| label: lrt
-#| tbl-cap: "Teste LRT — Poisson vs Binomial Negativa."
-#| cache: true
-
-print(lrtest(mod_pois, mod_nb))
-```
 
 ### Métricas de ajuste
 
@@ -1041,8 +1032,8 @@ data.frame(
 
 ::: {.callout-warning}
 ## Autocorrelação residual persistente
-O índice de Moran dos resíduos da BN global é significativo — o modelo global
-**não captura** a estrutura espacial. Isso motiva o uso de GWR.
+O índice de Moran dos resíduos da BN global é significativo, indicando que o modelo global não captura integralmente a estrutura espacial dos dados. A autocorrelação residual sugere que uma abordagem GWR pode ser útil, mas não constitui evidência de que as relações entre resposta e preditores variam espacialmente.
+Conforme Comber et al. a decisão pelo uso do GWR deve ser fundamentada em critérios adicionais, como a análise da heterogeneidade espacial dos coeficientes no GWR e a interpretação dos resultados de forma ampla.
 :::
 
 ### Excesso de zeros
@@ -1195,12 +1186,12 @@ encontrar o $h$ que minimiza o AICc (ou CV). Foram testadas 6 combinações:
 
 | Fórmula | Método | Critério | h ótimo |
 |---------|--------|----------|---------|
-| Sem igrejas | Adaptativa | **AICc** | **62** ← selecionado |
-| Sem igrejas | Adaptativa | CV | — |
-| Sem igrejas | Fixa | AICc | — |
-| Sem igrejas | Fixa | CV | — |
-| Com igrejas | Adaptativa | AICc | 12 (overfitting) |
-| Com igrejas | Adaptativa | CV | — |
+| Sem igrejas | Adaptativa | **AICc** | **62** |
+| Sem igrejas | Adaptativa | CV | 12 |
+| Sem igrejas | Fixa | AICc | 12573 |
+| Sem igrejas | Fixa | CV | 55278 |
+| Com igrejas | Adaptativa | AICc | 67  |
+| Com igrejas | Adaptativa | CV | 64 |
 
 Selecionou-se **adaptativa-AICc (h = 62)**.
 
@@ -1279,6 +1270,12 @@ mod_gwr <- gwzinbr(
 
 saveRDS(mod_gwr, file.path(dir_cache, "mod_gwr.rds"))
 ```
+
+::: {.callout-note}
+## Interpretação
+Em uma primeira análise, foram consideradas as mesmas covariáveis do modelo global, permitindo que seus coeficientes variassem entre os distritos. A variável **igrejas** não teve contribuição significativa para explicar o número de casos de violência em nenhum ponto do espaço. A análise foi então refeita sem incluir essa variável entre as explicativas.
+:::
+
 :::
 
 ### Métricas de ajuste
