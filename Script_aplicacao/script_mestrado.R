@@ -55,7 +55,7 @@ library(stringi)     # stri_trans_general() — remoção de diacríticos
 dir_dados  <- "dados"
 dir_aux    <- "arquivos_auxiliares"   # scripts de envelope simulado
 dir_cache  <- "_cache"                # modelo GWR serializado
-dir_output <- "~/Documents/GitHub/dissertacao/analise/output/plots_output"
+dir_output <- "figuras_output"
 
 if (!dir.exists(dir_cache))  dir.create(dir_cache,  recursive = TRUE)
 if (!dir.exists(dir_output)) dir.create(dir_output, recursive = TRUE)

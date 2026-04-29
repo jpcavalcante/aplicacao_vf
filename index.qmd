@@ -47,13 +47,11 @@ if (requireNamespace("gwzinbr", quietly = TRUE)) library(gwzinbr)
 figuras_dir <- "figuras_output"
 ```
 
-## Como reproduzir esta análise
+## Reprodutibilidade
 
-Esta seção orienta qualquer pessoa que queira reproduzir a análise do zero.
+Esta seção descreve os requisitos e a sequência de execução necessários para reproduzir integralmente a análise.
 
-### Pré-requisitos
-
-Instale os pacotes necessários antes de rodar qualquer script:
+### Pacotes necessários
 
 ```r
 install.packages(c(
@@ -83,21 +81,22 @@ aplicacao_vf/
 └── index.qmd                       ← este documento
 ```
 
-### Ordem de execução
+### Sequência de execução
 
 ```r
-# Passo 1 — ajusta modelos e salva figuras em figuras_output/ (~2 h)
+# Etapa 1 — estimação dos modelos e geração das figuras em figuras_output/ (~2 h)
 source("script_mestrado.R")
 
-# Passo 2 — renderiza o documento
+# Etapa 2 — renderização do documento
 quarto::quarto_render("index.qmd")
 ```
 
 ::: {.callout-important}
-## Aviso sobre dados brutos
-Os dados de entrada estão consolidados em `dados/base_mestrado.gpkg`.
-Os dados originais são provenientes do SINAN (SMS-SP / TABNET), Censo 2022 (IBGE),
-malha distrital (Prefeitura SP) e contagens de igrejas e bares (OpenStreetMap / SEADE).
+## Nota sobre os dados de entrada
+Os dados utilizados encontram-se consolidados em `dados/base_mestrado.gpkg`.
+As fontes originais compreendem: SINAN (SMS-SP / TABNET), Censo Demográfico 2022 (IBGE),
+malha distrital (Prefeitura do Município de São Paulo) e contagens de equipamentos
+religiosos e estabelecimentos de bebidas (OpenStreetMap / SEADE).
 :::
 
 ---
@@ -106,34 +105,35 @@ malha distrital (Prefeitura SP) e contagens de igrejas e bares (OpenStreetMap / 
 
 Este documento apresenta a análise espacial de casos notificados de **violência
 física contra crianças de 0 a 9 anos** nos 96 distritos administrativos do
-Município de São Paulo, utilizando dados do período **2018–2022**.
+Município de São Paulo, com base em dados do período **2018–2022**.
 
-Os dados foram obtidos a partir das notificações de violência registradas no
-**Sistema de Informação de Agravos de Notificação (SINAN)**, disponibilizadas
-pela plataforma TABNET da Secretaria Municipal da Saúde de São Paulo.
+Os registros utilizados provêm do **Sistema de Informação de Agravos de
+Notificação (SINAN)**, disponibilizados pela plataforma TABNET da Secretaria
+Municipal da Saúde de São Paulo.
 
 ::: {.callout-important}
-## Nota sobre os dados
-Para simplificar a nomenclatura, utilizamos o termo "casos de violência física"
-para designar os registros disponíveis, que correspondem a **notificações de
-suspeita** de violência física. Esses dados **não representam casos confirmados**,
-mas sim as notificações registradas na base utilizada para análise.
+## Nota sobre a natureza dos dados
+Os registros disponíveis correspondem a **notificações de suspeita** de
+violência física, não a casos confirmados. Ao longo deste documento, o termo
+"casos de violência física" refere-se exclusivamente às notificações presentes
+na base de dados utilizada.
 :::
 
-O objetivo é identificar fatores socioeconômicos e demográficos associados à
-incidência de violência e investigar se esses efeitos variam espacialmente —
-isto é, se a influência de cada variável é maior em certas regiões da cidade.
+O estudo tem por objetivo identificar fatores socioeconômicos e demográficos
+associados à incidência de violência física contra crianças e avaliar se a
+magnitude dessas associações varia espacialmente entre os distritos — isto é,
+se os efeitos das covariáveis são heterogêneos no espaço.
 
-**Estratégia analítica — do global ao local:**
+**Estratégia analítica:**
 
 | Etapa | Técnica | Objetivo |
 |---|---|---|
-| 1 | Mapeamento + TIP | Descrever a distribuição espacial da resposta |
-| 2 | Moran I global | Confirmar autocorrelação espacial |
-| 3 | Poisson global | Linha de base; detectar superdispersão |
-| 4 | Binomial Negativa global | Corrigir superdispersão; verificar resíduos |
-| 5 | LISA | Identificar clusters locais de risco |
-| 6 | GWR-NB (`gwzinbr`) | Modelar efeitos localmente variáveis |
+| 1 | Mapeamento + TIP | Caracterizar a distribuição espacial da variável resposta |
+| 2 | Índice de Moran global | Avaliar a presença de autocorrelação espacial |
+| 3 | Regressão de Poisson | Modelo de referência; diagnóstico de superdispersão |
+| 4 | Regressão Binomial Negativa | Correção da superdispersão; análise dos resíduos |
+| 5 | LISA | Identificação de agrupamentos locais de risco |
+| 6 | GWR-NB (`gwzinbr`) | Estimação de efeitos localmente variáveis |
 
 ---
 
@@ -163,14 +163,11 @@ cat("Variáveis disponíveis:", ncol(distritos) - 1, "(+ geometria)\n")
 
 ## Variável Resposta — Casos de Violência Física
 
-::: {.callout-note}
-## Por que analisar espacialmente?
-A violência física contra crianças não se distribui aleatoriamente no espaço:
-fatores como densidade populacional, composição familiar, acesso a serviços
-e renda variam entre os distritos. Uma análise puramente tabular ignoraria
-essa estrutura. O mapeamento é o primeiro passo para decidir se modelos com
-componente espacial são necessários.
-:::
+A distribuição espacial das notificações constitui o ponto de partida da
+análise. A heterogeneidade observada entre os distritos — decorrente de
+diferenças na estrutura socioeconômica, composição familiar e acesso a
+serviços — justifica a investigação de dependência espacial e a eventual
+adoção de modelos com componente geográfico.
 
 ### Distribuição espacial dos casos
 
@@ -252,15 +249,13 @@ knitr::include_graphics(file.path(figuras_dir, "mapa_vf_circulos.png"))
 
 ## Taxa de Incidência Padronizada (TIP)
 
-::: {.callout-note}
-## Por que padronizar os casos?
-A padronização indireta estratificada elimina o efeito da composição demográfica,
-permitindo comparar a incidência entre distritos com diferentes estruturas etárias
-e de sexo. A taxa bruta não controla para o fato de que distritos com mais
-crianças pequenas são naturalmente mais expostos.
-:::
+A taxa bruta de casos não controla o efeito da composição demográfica dos
+distritos, de modo que unidades com maior contingente de crianças apresentariam
+mecanicamente contagens mais elevadas. A **padronização indireta** estratificada
+por faixa etária e sexo permite comparações válidas ao eliminar esse efeito
+estrutural de exposição.
 
-A **padronização indireta** calcula o número esperado de casos aplicando as taxas
+A fórmula da padronização indireta calcula o número esperado de casos aplicando as taxas
 específicas de cada estrato ao perfil populacional do distrito:
 
 $$
@@ -406,12 +401,11 @@ knitr::include_graphics(file.path(figuras_dir, "boxplot_robusto_taxa_padronizada
 
 ### Índice de Moran global
 
-::: {.callout-note}
-## Por que testar autocorrelação espacial?
-O índice de Moran verifica se distritos próximos têm TIPs semelhantes mais do
-que seria esperado ao acaso. Um resultado significativo indica **dependência
-espacial**.
-:::
+O índice de Moran global avalia se os valores da TIP nos distritos
+contíguos apresentam similaridade superior à esperada sob aleatoriedade espacial.
+Um resultado estatisticamente significativo constitui evidência de **dependência
+espacial** na distribuição da incidência, condição que fundamenta o uso de
+modelos com estrutura geográfica.
 
 ```{r}
 #| label: moran-tip
@@ -437,34 +431,43 @@ plot(moran_tip, main = "")
 ```
 
 ::: {.callout-important}
-## Autocorrelação espacial confirmada
-O índice de Moran para a TIP foi de **I = 0,312** (p = 0,001), indicando que
-os casos **não se distribuem aleatoriamente** no espaço. 
+## Resultado: autocorrelação espacial significativa
+O índice de Moran estimado para a TIP foi **I = 0,312** (p = 0,001), rejeitando
+a hipótese de aleatoriedade espacial e confirmando a existência de padrão
+de agrupamento na distribuição da incidência de violência física entre os distritos.
 :::
 
 ---
 
 ## Coordenadas Geográficas
 
-Para a análise GWR, adotou-se o **sistema UTM** (zona 23S, SIRGAS 2000 — EPSG:31983),
-com coordenadas em metros. As coordenadas de cada distrito foram definidas como o
-**ponto de maior densidade populacional** (colunass `long_utm` e `lat_utm`),
-e não o centroide geométrico.
+Para a análise GWR, adotou-se o **sistema de coordenadas UTM** (zona 23S,
+SIRGAS 2000 — EPSG:31983), com distâncias expressas em metros. A localização
+espacial de cada distrito foi definida pelo **ponto de máxima densidade
+populacional** (colunas `long_utm` e `lat_utm`), em substituição ao centroide
+geométrico.
 
 ::: {.callout-note}
-## Por que densidade populacional e não centroide geométrico?
-O centroide pode cair em áreas desabitadas (parques, reservatórios). Para o GWR,
-que usa distâncias para ponderar observações, o ponto que representa **onde as
-pessoas vivem** é mais adequado — especialmente em distritos grandes como Marsilac.
+## Justificativa para o uso do ponto de máxima densidade
+O centroide geométrico pode situar-se em áreas sem ocupação humana —
+parques, corpos d'água ou zonas industriais — sendo representativo da
+extensão territorial, mas não da localização da população. No GWR, as
+distâncias entre os pontos de referência determinam o peso atribuído a
+cada observação; portanto, o ponto que melhor expressa **onde a população
+reside** produz ponderações espaciais mais adequadas. Essa consideração
+é particularmente relevante para distritos de grande extensão territorial,
+como Marsilac.
 :::
 
 ---
 
 ## Variáveis Explicativas
 
-As variáveis do Censo 2022 estão em percentual (0–100). Igrejas e bares são
-expressos por mil habitantes. A renda foi padronizada pelo método mínimo-máximo:
-$\text{rendap} = 100 \times (x - \min) / (\max - \min)$.
+As variáveis provenientes do Censo 2022 encontram-se expressas em proporção
+percentual (0–100). Os equipamentos religiosos e estabelecimentos de bebidas
+são normalizados pela população residente, sendo expressos por mil habitantes.
+A variável de renda foi padronizada pelo método mínimo-máximo no intervalo
+[0, 100]: $\text{rendap} = 100 \times (x - \min) / (\max - \min)$.
 
 ### Quadro de variáveis
 
@@ -699,10 +702,13 @@ lapply(seq_along(vars_descr), function(i) {
 
 ::: {.callout-note}
 ## Critérios de seleção de variáveis
-Com base nas correlações e no dendrograma abaixo, foram selecionadas para os
-modelos: **`comodo`**, **`composta`**, **`mais5`**, **`mulher_resp`** e **`igrejas`**.
-A variável `igrejas` foi incluída no processo de seleção de largura de banda
-mas **removida do modelo GWR final** (ver seção GWR).
+Com base nas correlações observadas e na estrutura de agrupamento apresentada
+no dendrograma, foram selecionadas para inclusão nos modelos de regressão as
+variáveis: **`comodo`**, **`composta`**, **`mais5`**, **`mulher_resp`** e
+**`igrejas`**. A variável `igrejas` foi considerada na etapa de seleção da
+largura de banda, mas **excluída da especificação final do modelo GWR** diante
+da ausência de contribuição estatisticamente significativa em qualquer localização
+do espaço de estudo (ver Seção GWR).
 :::
 
 ### Matriz de correlação entre variáveis explicativas
@@ -761,13 +767,12 @@ knitr::include_graphics(file.path(figuras_dir, "dendrograma_correlação.png"))
 
 ## Modelo de Poisson (global)
 
-::: {.callout-note}
-## Por que começar com Poisson?
-O modelo de Poisson é o ponto de partida natural para dados de contagem.
-Ajustá-lo primeiro serve para **diagnosticar superdispersão**: se o desvio
-residual for muito maior que os graus de liberdade, precisamos de um modelo
-que permita variância > média.
-:::
+O modelo de Poisson constitui a especificação de referência para dados de
+contagem. Sua estimação preliminar tem por finalidade diagnosticar a presença
+de **superdispersão** — condição em que a variância empírica excede a média —,
+identificada quando a razão entre o desvio residual e os respectivos graus de
+liberdade é substancialmente superior à unidade. A confirmação de superdispersão
+requer a adoção de uma distribuição mais flexível, como a Binomial Negativa.
 
 ```{r}
 #| label: poisson
@@ -821,9 +826,11 @@ data.frame(
 ```
 
 ::: {.callout-warning}
-## Superdispersão detectada
-A razão desvio/GL é muito acima de 1, indicando forte **superdispersão**.
-O envelope simulado confirma a inadequação do modelo.
+## Diagnóstico: superdispersão
+A razão entre desvio residual e graus de liberdade é substancialmente superior
+à unidade, evidenciando **superdispersão** nos dados. O envelope simulado
+corrobora a inadequação da distribuição de Poisson para modelar a variável
+resposta, justificando a adoção da regressão Binomial Negativa.
 :::
 
 ### Resíduos — distribuição espacial
@@ -885,12 +892,11 @@ knitr::include_graphics(file.path(figuras_dir, "envelope_poisson.png"))
 
 ## Modelo Binomial Negativa (global)
 
-::: {.callout-note}
-## Por que Binomial Negativa?
-A BN adiciona o parâmetro de superdispersão $\alpha$ permitindo
-$\text{Var}(Y) = \mu + \alpha\mu^2 > \mu$. Quando $\alpha \to 0$ converge
-para Poisson. O LRT verifica se $\alpha$ é significativamente positivo.
-:::
+A distribuição Binomial Negativa introduz o parâmetro de superdispersão
+$\alpha > 0$, de modo que $\text{Var}(Y) = \mu + \alpha\mu^2 > \mu$.
+Quando $\alpha \to 0$, a distribuição converge para Poisson, tornando a
+Binomial Negativa uma generalização aninhada que admite teste formal de
+adequação por meio do Teste da Razão de Verossimilhanças (TRV).
 
 ```{r}
 #| label: binomial-negativa
@@ -910,8 +916,9 @@ n_nb   <- nobs(mod_nb)
 
 ### Coeficientes
 
-Os coeficientes estão na escala log; $\exp(\hat\beta)$ é o fator multiplicativo
-sobre a contagem esperada.
+Os coeficientes são estimados na escala logarítmica; $\exp(\hat\beta)$ representa
+o fator multiplicativo sobre a contagem esperada, interpretado como razão de
+incidência associada a um incremento unitário na covariável correspondente.
 
 ```{r}
 #| label: coef-nb
@@ -1053,18 +1060,19 @@ data.frame(
 ) |> kable() |> kable_styling(full_width = FALSE)
 ```
 
-Razão próxima de 1 → a BN acomoda adequadamente os zeros. Modelo ZINB não é necessário.
+A razão observada próxima da unidade indica que a distribuição Binomial Negativa
+acomoda adequadamente a frequência de zeros presente nos dados, dispensando a
+especificação de um modelo inflacionado de zeros (ZINB).
 
 ---
 
 ## Análise de Autocorrelação Local — LISA
 
-::: {.callout-note}
-## Por que LISA?
-O Moran global não indica **onde** os clusters estão. O LISA decompõe o índice
-por distrito, identificando hot spots (High-High), cold spots (Low-Low) e
-outliers espaciais (High-Low, Low-High).
-:::
+O índice de Moran global quantifica a dependência espacial de forma agregada,
+sem indicar a localização dos agrupamentos. A análise LISA (*Local Indicators
+of Spatial Association*) decompõe essa dependência ao nível distrital,
+permitindo identificar hot spots (High-High), cold spots (Low-Low) e outliers
+espaciais (High-Low, Low-High) com significância estatística individual.
 
 ::: {.callout-note collapse="true"}
 ## Código (`script_mestrado.R` — Seção 9)
@@ -1133,30 +1141,42 @@ as.data.frame(table(distritos$cluster_lisa)) |>
 ```
 
 ::: {.callout-note}
-## Interpretação
-Hot spots **High-High** concentram-se na Zona Leste (Itaim Paulista, São Miguel).
-A heterogeneidade local — hot spots adjacentes a áreas de baixo risco — é
-exatamente o que modelos globais não capturam, motivando o GWR.
+## Interpretação dos resultados LISA
+Os agrupamentos High-High concentram-se na Zona Leste do município, com destaque
+para os distritos de Itaim Paulista e São Miguel. A coexistência de hot spots
+adjacentes a áreas de baixa incidência evidencia heterogeneidade espacial nas
+relações entre as covariáveis e a variável resposta — padrão que modelos de
+regressão global, por definição, não são capazes de capturar, fundamentando
+metodologicamente a adoção do GWR.
 :::
 
 ---
 
 ## GWR — Regressão Geograficamente Ponderada (Binomial Negativa)
 
-::: {.callout-note}
-## Por que GWR?
-Os modelos globais assumem efeito **constante** de cada covariável. O mapa LISA
-e o Moran I dos resíduos da BN mostram que essa suposição é falsa. O GWR estima
-um vetor de coeficientes $\boldsymbol\beta(\mathbf{u}_i)$ para cada distrito,
-ponderando as observações pelo kernel bisquare adaptativo:
+Os modelos de regressão global assumem que o efeito de cada covariável é
+espacialmente estacionário — isto é, constante em toda a área de estudo.
+Os resultados da análise LISA e a autocorrelação significativa nos resíduos
+da Binomial Negativa global contradizem essa premissa, motivando a adoção
+da Regressão Geograficamente Ponderada (GWR). No GWR, estima-se um vetor
+de coeficientes específico para cada localização $\mathbf{u}_i$:
+
+$$\log(\mu_i) = \mathbf{x}_i^\top \boldsymbol{\beta}(\mathbf{u}_i) + \text{offset}_i$$
+
+As observações são ponderadas por um kernel bisquare adaptativo centrado em
+cada distrito:
+
 $$w_{ij} = \left(1 - \left(\frac{d_{ij}}{h_i}\right)^2\right)^2 \cdot \mathbf{1}[d_{ij} \le h_i]$$
-A largura de banda $h$ (número de vizinhos) é selecionada por Seção Áurea.
-:::
+
+A largura de banda $h$ — expressa em número de vizinhos mais próximos —
+é determinada pela minimização do AICc mediante o algoritmo de Busca em
+Seção Áurea implementado na função `Golden()` do pacote `gwzinbr`.
 
 ### Preparação dos dados
 
-As variáveis foram padronizadas (z-score) para tornar os coeficientes locais
-comparáveis entre si.
+As variáveis explicativas foram padronizadas pelo escore-z previamente ao
+ajuste do modelo, garantindo que os coeficientes locais estimados pelo GWR
+sejam comparáveis em magnitude entre as diferentes covariáveis.
 
 ::: {.callout-note collapse="true"}
 ## Código (`script_mestrado.R` — Seção 10.1)
@@ -1181,8 +1201,10 @@ for (v in vars_gwr) tab_gwr[[v]] <- as.numeric(scale(tab_gwr[[v]]))
 
 ### Seleção da largura de banda
 
-A função `Golden()` do pacote `gwzinbr` realiza uma Busca em Seção Áurea para
-encontrar o $h$ que minimiza o AICc (ou CV). Foram testadas 6 combinações:
+A função `Golden()` do pacote `gwzinbr` implementa o algoritmo de Busca em
+Seção Áurea para identificar o valor ótimo de $h$ segundo o critério AICc ou
+validação cruzada. Foram avaliadas seis combinações de fórmula, método de
+kernel e critério de seleção:
 
 | Fórmula | Método | Critério | h ótimo |
 |---------|--------|----------|---------|
@@ -1193,7 +1215,8 @@ encontrar o $h$ que minimiza o AICc (ou CV). Foram testadas 6 combinações:
 | Com igrejas | Adaptativa | AICc | 67  |
 | Com igrejas | Adaptativa | CV | 64 |
 
-Selecionou-se **adaptativa-AICc (h = 62)**.
+Selecionou-se a configuração com kernel **adaptativo** e critério **AICc**
+(h = 62 vizinhos), por apresentar melhor equilíbrio entre ajuste e parcimônia.
 
 ::: {.callout-note collapse="true"}
 ## Código (`script_mestrado.R` — Seção 10.2)
@@ -1301,7 +1324,9 @@ if (file.exists(mod_gwr_path)) {
 
 ### Parâmetros estimados — mapas
 
-Estimativas locais dos coeficientes. Regiões em **cinza** = não significativos a 10%.
+Os mapas a seguir apresentam as estimativas locais dos coeficientes por
+distrito. Regiões em **cinza** correspondem a distritos nos quais o coeficiente
+não é estatisticamente significativo ao nível de 10%.
 
 ::: {.callout-note collapse="true"}
 ## Código — extração e mapeamento dos coeficientes (`script_mestrado.R` — Seção 10.4)
@@ -1365,43 +1390,50 @@ walk(
 ```
 :::
 
-#### Hab. Coletiva (`comodo`)
+#### Habitações coletivas informais (`comodo`)
 
 ![Estimativas locais — comodo](figuras_output/mapa_param_gwr_bn_comodo.png)
 
-O coeficiente de `comodo` apresenta efeito positivo nas zonas periféricas,
-indicando que maior presença de habitações coletivas informais está associada
-a maior incidência de violência.
+O coeficiente de `comodo` apresenta efeito positivo nos distritos periféricos,
+indicando que a maior presença de habitações coletivas informais está associada,
+nessas localidades, a maior incidência de violência física notificada.
 
-#### Família Composta (`composta`)
+#### Família composta (`composta`)
 
 ![Estimativas locais — composta](figuras_output/mapa_param_gwr_bn_composta.png)
 
-Efeito mais negativo no oeste e noroeste — sugerindo papel protetor de
-estruturas familiares complexas em determinadas regiões.
+O efeito da variável `composta` é predominantemente negativo nas regiões
+oeste e noroeste do município, sugerindo que, nessas áreas, a estrutura
+familiar composta está associada a menor incidência de violência — evidência
+de um possível papel protetor de arranjos familiares complexos.
 
-#### 5 ou mais Moradores (`mais5`)
+#### Domicílios com 5 ou mais moradores (`mais5`)
 
 ![Estimativas locais — mais5](figuras_output/mapa_param_gwr_bn_mais5.png)
 
-Efeito positivo pronunciado nas periferias da Zona Leste. A amplitude
-interquartil dos coeficientes locais evidencia forte não-estacionariedade
-espacial desta variável.
+O coeficiente de `mais5` apresenta efeito positivo pronunciado nas periferias
+da Zona Leste. A amplitude interquartil dos coeficientes locais evidencia
+forte não-estacionariedade espacial desta variável, cujo efeito varia
+substancialmente entre os distritos.
 
-#### Responsável Mulher (`mulher_resp`)
+#### Domicílios chefiados por mulheres (`mulher_resp`)
 
 ![Estimativas locais — mulher_resp](figuras_output/mapa_param_gwr_bn_mulher_resp.png)
 
-Globalmente não significativa, mas com coeficientes locais significativos
-em regiões específicas — ilustra como o GWR captura variações que um modelo
-global oculta.
+Embora estatisticamente não significativa no modelo global, a variável
+`mulher_resp` apresenta coeficientes locais significativos em regiões
+específicas do município. Esse resultado ilustra a capacidade do GWR de
+revelar associações espacialmente heterogêneas que permanecem ocultas sob
+a premissa de estacionariedade dos efeitos.
 
-#### Parâmetro de Superdispersão ($\alpha$)
+#### Parâmetro de superdispersão local ($\alpha$)
 
 ![Estimativas locais do parâmetro α](figuras_output/mapa_param_gwr_bn_alpha.png)
 
-Valores mais elevados de $\alpha$ na Zona Leste indicam maior variação não
-explicada pelo modelo nessas áreas.
+Valores mais elevados de $\hat{\alpha}$ na Zona Leste indicam maior variância
+não explicada pelo modelo nessas localidades, sugerindo a presença de
+heterogeneidade não observada ou de covariáveis omitidas relevantes para
+essa região.
 
 ### Resíduos e diagnóstico espacial
 
@@ -1441,10 +1473,13 @@ knitr::include_graphics(file.path(figuras_dir, "mapa_residuos_gwr_negbin.png"))
 ```
 
 ::: {.callout-note}
-## Destaque: Itaim Paulista
-O resíduo mais elevado concentra-se em **Itaim Paulista**, possivelmente
-relacionado à presença da *Casa de Isabel*, referência regional para
-notificações de violência infantil.
+## Nota: distrito de Itaim Paulista
+O resíduo de maior magnitude concentra-se no distrito de **Itaim Paulista**,
+resultado possivelmente associado à presença da *Casa de Isabel*, equipamento
+de referência regional para o acolhimento e notificação de casos de violência
+contra crianças. A concentração de notificações em um serviço especializado
+pode inflar artificialmente os registros do distrito relativamente à incidência
+real do fenômeno.
 :::
 
 ```{r}
@@ -1464,29 +1499,41 @@ if (exists("mod_gwr")) {
 ```
 
 ::: {.callout-tip}
-## GWR absorveu a estrutura espacial
-Moran I dos resíduos do GWR-NB não significativo (p > 0,05) — compare com
-a BN global (I significativo). O GWR eliminou a dependência espacial residual.
+## GWR absorve a estrutura espacial residual
+O índice de Moran estimado para os resíduos do GWR-NB não é estatisticamente
+significativo (p > 0,05), em contraste com o valor significativo obtido para
+os resíduos do modelo Binomial Negativa global. Esse resultado indica que a
+especificação geograficamente ponderada foi capaz de absorver a dependência
+espacial remanescente, produzindo resíduos compatíveis com a hipótese de
+aleatoriedade espacial.
 :::
 
 ---
 
 ## Síntese dos Resultados
 
-| Etapa | Modelo/Técnica | Principal resultado |
+| Etapa | Técnica/Modelo | Principal resultado |
 |---|---|---|
-| Distribuição espacial | TIP + Moran I | I = 0,312 (p = 0,001) — concentração na Zona Leste |
-| Modelo global 1 | Poisson | Superdispersão grave (razão ≈ 17,7) |
-| Modelo global 2 | BN | Melhor ajuste; resíduos ainda autocorrelacionados |
-| Clusters locais | LISA | Hot spots em Itaim Paulista / São Miguel (Zona Leste) |
-| Modelo espacial | GWR-NB (h = 62) | Resíduos aleatórios; coeficientes variam no espaço |
+| Análise exploratória | TIP + Índice de Moran | I = 0,312 (p = 0,001); padrão de concentração na Zona Leste |
+| Modelo de referência | Regressão de Poisson | Superdispersão acentuada (razão desvio/GL ≈ 17,7) |
+| Correção da superdispersão | Regressão Binomial Negativa | Melhora substancial do ajuste; autocorrelação residual persiste |
+| Análise de agrupamentos | LISA | Hot spots em Itaim Paulista e São Miguel (Zona Leste) |
+| Modelo espacial local | GWR-NB (h = 62) | Resíduos não autocorrelacionados; coeficientes espacialmente variáveis |
 
-**Principais achados:**
+Os principais resultados substantivos do modelo GWR-NB podem ser assim sumarizados:
 
-- **`mais5`**: efeito positivo mais intenso nas periferias da Zona Leste — adensamento domiciliar é fator de risco heterogêneo.
-- **`composta`**: efeito protetor mais pronunciado no oeste e noroeste.
-- **`comodo`**: efeito positivo nas periferias, reforçando vulnerabilidade de moradia.
-- **`mulher_resp`**: não significativa globalmente, mas com efeito local em regiões específicas — exemplo do poder do GWR de revelar associações ocultas.
+- **`mais5`**: associação positiva com a incidência de violência, com efeito
+  mais intenso nas periferias da Zona Leste, evidenciando que o adensamento
+  domiciliar constitui um fator de risco espacialmente heterogêneo.
+- **`composta`**: efeito protetor mais pronunciado nas regiões oeste e noroeste
+  do município, sugerindo que arranjos familiares compostos podem funcionar como
+  fator de proteção em determinadas áreas.
+- **`comodo`**: efeito positivo nas regiões periféricas, reforçando a
+  associação entre condições precárias de moradia e maior incidência de violência.
+- **`mulher_resp`**: estatisticamente não significativa no modelo global,
+  mas com coeficientes locais significativos em regiões específicas —
+  ilustrando a capacidade do GWR de revelar associações mascaradas pela premissa
+  de estacionariedade espacial dos efeitos.
 
 ---
 
