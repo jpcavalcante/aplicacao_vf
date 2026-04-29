@@ -93,7 +93,7 @@ quarto::quarto_render("index.qmd")
 
 ::: {.callout-important}
 ## Nota sobre os dados de entrada
-Os dados utilizados encontram-se consolidados em `dados/base_mestrado.gpkg`.
+Os dados utilizados encontram-se consolidados em `Script_aplicacao/dados/base_mestrado.gpkg`.
 As fontes originais compreendem: SINAN (SMS-SP / TABNET), Censo Demográfico 2022 (IBGE),
 malha distrital (Prefeitura do Município de São Paulo) e contagens de equipamentos
 religiosos e estabelecimentos de bebidas (OpenStreetMap / SEADE).
@@ -143,7 +143,7 @@ se os efeitos das covariáveis são heterogêneos no espaço.
 #| label: leitura-dados
 #| cache: false
 
-distritos <- st_read("dados/base_mestrado.gpkg", layer = "distritos", quiet = TRUE)
+distritos <- st_read("Script_aplicacao/dados/base_mestrado.gpkg", layer = "distritos", quiet = TRUE)
 
 cat("Distritos carregados:", nrow(distritos), "\n")
 cat("Variáveis disponíveis:", ncol(distritos) - 1, "(+ geometria)\n")
