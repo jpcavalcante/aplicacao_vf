@@ -57,7 +57,8 @@ jobs:
               "MASS", "robustbase", "car", "lmtest",
               "corrplot", "ggspatial", "knitr", "kableExtra",
               "gridExtra", "scales", "readxl", "openxlsx",
-              "writexl", "stringi", "purrr", "broom", "remotes", "pak"
+              "writexl", "stringi", "purrr", "broom",
+              "rmarkdown", "remotes", "pak"
             )
             missing <- pkgs[!pkgs %in% installed.packages()[,"Package"]]
             if (length(missing)) install.packages(missing, repos="https://cloud.r-project.org")
