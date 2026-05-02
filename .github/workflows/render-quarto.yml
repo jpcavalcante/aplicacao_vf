@@ -44,6 +44,7 @@ jobs:
         with:
           path: ${{ env.R_LIBS_USER }}
           key: r-pkgs-${{ hashFiles('**/DESCRIPTION', '.github/workflows/render-quarto.yml') }}
+          restore-keys: r-pkgs-
 
       # 5. Instalar pacotes R
       - name: Install R packages
@@ -56,8 +57,7 @@ jobs:
               "MASS", "robustbase", "car", "lmtest",
               "corrplot", "ggspatial", "knitr", "kableExtra",
               "gridExtra", "scales", "readxl", "openxlsx",
-              "writexl", "stringi", "purrr", "broom",
-              "rmarkdown", "remotes", "pak"
+              "writexl", "stringi", "purrr", "broom", "remotes", "pak"
             )
             missing <- pkgs[!pkgs %in% installed.packages()[,"Package"]]
             if (length(missing)) install.packages(missing, repos="https://cloud.r-project.org")
@@ -85,27 +85,23 @@ jobs:
             }
           '
 
-      # 6. Garantir rmarkdown e knitr (engine do Quarto — força reinstalação)
-      - name: Ensure rmarkdown
-        run: Rscript -e 'install.packages(c("rmarkdown", "knitr"), repos = "https://cloud.r-project.org")'
-
-      # 7. Instalar Quarto
+      # 6. Instalar Quarto
       - name: Setup Quarto
         uses: quarto-dev/quarto-actions/setup@v2
 
-      # 8. Cache do Quarto/knitr (evita re-executar modelos GWR pesados)
+      # 7. Cache do Quarto/knitr (evita re-executar modelos GWR pesados)
       - name: Cache Quarto computations
         uses: actions/cache@v4
         with:
           path: _cache/
-          key: quarto-cache-${{ hashFiles('index.qmd', 'Script_aplicacao/dados/base_mestrado.gpkg') }}
+          key: quarto-cache-${{ hashFiles('index.qmd', 'dados/base_mestrado.gpkg') }}
           restore-keys: quarto-cache-
 
       # 8. Preparar dados (gera base_mestrado.gpkg se não existir)
       - name: Prepare data
         run: |
-          if [ ! -f Script_aplicacao/dados/base_mestrado.gpkg ]; then
-            Rscript Script_aplicacao/preparar_dados.R
+          if [ ! -f dados/base_mestrado.gpkg ]; then
+            Rscript preparar_dados.R
           else
             echo "GeoPackage já existe, pulando preparação."
           fi
