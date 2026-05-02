@@ -44,7 +44,6 @@ jobs:
         with:
           path: ${{ env.R_LIBS_USER }}
           key: r-pkgs-${{ hashFiles('**/DESCRIPTION', '.github/workflows/render-quarto.yml') }}
-          restore-keys: r-pkgs-
 
       # 5. Instalar pacotes R
       - name: Install R packages
@@ -86,9 +85,9 @@ jobs:
             }
           '
 
-      # 6. Garantir rmarkdown (necessário para o engine knitr do Quarto)
+      # 6. Garantir rmarkdown e knitr (engine do Quarto — força reinstalação)
       - name: Ensure rmarkdown
-        run: Rscript -e 'if (!requireNamespace("rmarkdown", quietly = TRUE)) install.packages("rmarkdown", repos = "https://cloud.r-project.org")'
+        run: Rscript -e 'install.packages(c("rmarkdown", "knitr"), repos = "https://cloud.r-project.org")'
 
       # 7. Instalar Quarto
       - name: Setup Quarto
