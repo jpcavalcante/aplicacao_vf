@@ -86,11 +86,15 @@ jobs:
             }
           '
 
-      # 6. Instalar Quarto
+      # 6. Garantir rmarkdown (necessário para o engine knitr do Quarto)
+      - name: Ensure rmarkdown
+        run: Rscript -e 'if (!requireNamespace("rmarkdown", quietly = TRUE)) install.packages("rmarkdown", repos = "https://cloud.r-project.org")'
+
+      # 7. Instalar Quarto
       - name: Setup Quarto
         uses: quarto-dev/quarto-actions/setup@v2
 
-      # 7. Cache do Quarto/knitr (evita re-executar modelos GWR pesados)
+      # 8. Cache do Quarto/knitr (evita re-executar modelos GWR pesados)
       - name: Cache Quarto computations
         uses: actions/cache@v4
         with:
