@@ -17,11 +17,7 @@ format:
     fig-height: 6
     embed-resources: true
     smooth-scroll: true
-execute:
-  warning: false
-  message: false
-  cache: true
-  cache-path: _cache/
+engine: markdown
 ---
 
 ```{r}
@@ -197,13 +193,7 @@ ggsave(file.path(dir_output, "mapa_vf_2018_2022.png"),
 ```
 :::
 
-```{r}
-#| label: mapa-casos
-#| fig-cap: "Distribuição dos casos notificados de violência física (2018–2022). Asterisco = distrito com zero casos."
-#| echo: false
-
-knitr::include_graphics(file.path(figuras_dir, "mapa_vf_2018_2022.png"))
-```
+![Distribuição dos casos notificados de violência física (2018–2022). Asterisco = distrito com zero casos.](figuras_output/mapa_vf_2018_2022.png)
 
 ::: {.callout-note collapse="true"}
 ## Código — mapa de círculos (`script_mestrado.R` — Seção 4)
@@ -237,13 +227,7 @@ ggsave(file.path(dir_output, "mapa_vf_circulos.png"),
 ```
 :::
 
-```{r}
-#| label: mapa-circulos
-#| fig-cap: "Mapa de círculos proporcionais — casos notificados de violência física."
-#| echo: false
-
-knitr::include_graphics(file.path(figuras_dir, "mapa_vf_circulos.png"))
-```
+![Mapa de círculos proporcionais — casos notificados de violência física.](figuras_output/mapa_vf_circulos.png)
 
 ---
 
@@ -326,13 +310,7 @@ ggsave(file.path(dir_output, "mapa_taxa_padronizada_vf_2018_2022.png"),
 ```
 :::
 
-```{r}
-#| label: mapa-tip
-#| fig-cap: "Taxa de Incidência Padronizada (TIP) por distrito. Asterisco = zero casos."
-#| echo: false
-
-knitr::include_graphics(file.path(figuras_dir, "mapa_taxa_padronizada_vf_2018_2022.png"))
-```
+![Taxa de Incidência Padronizada (TIP) por distrito. Asterisco = zero casos.](figuras_output/mapa_taxa_padronizada_vf_2018_2022.png)
 
 ### Medidas resumo
 
@@ -391,13 +369,7 @@ dev.off()
 ```
 :::
 
-```{r}
-#| label: boxplot-tip
-#| fig-cap: "Boxplot robusto (adjbox) da TIP com identificação dos outliers."
-#| echo: false
-
-knitr::include_graphics(file.path(figuras_dir, "boxplot_robusto_taxa_padronizada.png"))
-```
+![Boxplot robusto (adjbox) da TIP com identificação dos outliers.](figuras_output/boxplot_robusto_taxa_padronizada.png)
 
 ### Índice de Moran global
 
@@ -730,13 +702,7 @@ dev.off()
 ```
 :::
 
-```{r}
-#| label: corrplot
-#| fig-cap: "Matriz de correlação de Pearson entre as variáveis explicativas."
-#| echo: false
-
-knitr::include_graphics(file.path(figuras_dir, "matriz_correlacao_variaveis.png"))
-```
+![Matriz de correlação de Pearson entre as variáveis explicativas.](figuras_output/matriz_correlacao_variaveis.png)
 
 ### Dendrograma de correlação
 
@@ -755,13 +721,7 @@ dev.off()
 ```
 :::
 
-```{r}
-#| label: dendrograma
-#| fig-cap: "Agrupamento hierárquico por dissimilaridade de Pearson (método Ward)."
-#| echo: false
-
-knitr::include_graphics(file.path(figuras_dir, "dendrograma_correlação.png"))
-```
+![Agrupamento hierárquico por dissimilaridade de Pearson (método Ward).](figuras_output/dendrograma_correlação.png)
 
 ---
 
@@ -856,13 +816,7 @@ ggsave(file.path(dir_output, "mapa_residuos_poisson.png"),
 ```
 :::
 
-```{r}
-#| label: mapa-resid-pois
-#| fig-cap: "Resíduos de desvio — Modelo de Poisson."
-#| echo: false
-
-knitr::include_graphics(file.path(figuras_dir, "mapa_residuos_poisson.png"))
-```
+![Resíduos de desvio — Modelo de Poisson.](figuras_output/mapa_residuos_poisson.png)
 
 ### Envelope simulado
 
@@ -880,13 +834,7 @@ detach(tab)
 ```
 :::
 
-```{r}
-#| label: envelope-pois
-#| fig-cap: "Envelope simulado — Poisson. Pontos fora do envelope indicam inadequação do modelo."
-#| echo: false
-
-knitr::include_graphics(file.path(figuras_dir, "envelope_poisson.png"))
-```
+![Envelope simulado — Poisson. Pontos fora do envelope indicam inadequação do modelo.](figuras_output/envelope_poisson.png)
 
 ---
 
@@ -975,13 +923,7 @@ detach(tab)
 ```
 :::
 
-```{r}
-#| label: envelope-nb
-#| fig-cap: "Envelope simulado — Binomial Negativa."
-#| echo: false
-
-knitr::include_graphics(file.path(figuras_dir, "envelope_negbin.png"))
-```
+![Envelope simulado — Binomial Negativa.](figuras_output/envelope_negbin.png)
 
 ### Resíduos — distribuição espacial
 
@@ -1010,13 +952,7 @@ ggsave(file.path(dir_output, "mapa_residuos_negbin.png"),
 ```
 :::
 
-```{r}
-#| label: mapa-resid-nb
-#| fig-cap: "Resíduos de desvio — Binomial Negativa."
-#| echo: false
-
-knitr::include_graphics(file.path(figuras_dir, "mapa_residuos_negbin.png"))
-```
+![Resíduos de desvio — Binomial Negativa.](figuras_output/mapa_residuos_negbin.png)
 
 ### Autocorrelação espacial dos resíduos
 
@@ -1105,13 +1041,7 @@ ggsave(file.path(dir_output, "mapa_lisa_tx_pad.png"),
 ```
 :::
 
-```{r}
-#| label: lisa
-#| fig-cap: "Mapa LISA — agrupamentos locais da TIP (α = 10%)."
-#| echo: false
-
-knitr::include_graphics(file.path(figuras_dir, "mapa_lisa_tx_pad.png"))
-```
+![Mapa LISA — agrupamentos locais da TIP (α = 10%).](figuras_output/mapa_lisa_tx_pad.png)
 
 ```{r}
 #| label: lisa-tabela
@@ -1264,13 +1194,7 @@ ggsave(file.path(dir_output, "grafico_banda_adaptative_aic.png"),
 ```
 :::
 
-```{r}
-#| label: convergencia-gss
-#| fig-cap: "Convergência da Seção Áurea — cenário selecionado (adaptativa, AICc, sem igrejas)."
-#| echo: false
-
-knitr::include_graphics(file.path(figuras_dir, "grafico_banda_adaptative_aic.png"))
-```
+![Convergência da Seção Áurea — cenário selecionado (adaptativa, AICc, sem igrejas).](figuras_output/grafico_banda_adaptative_aic.png)
 
 ### Ajuste do modelo GWR-NB
 
@@ -1464,13 +1388,7 @@ ggsave(file.path(dir_output, "mapa_residuos_gwr_negbin.png"),
 ```
 :::
 
-```{r}
-#| label: mapa-resid-gwr
-#| fig-cap: "Distribuição espacial dos resíduos de trabalho — GWR-NB."
-#| echo: false
-
-knitr::include_graphics(file.path(figuras_dir, "mapa_residuos_gwr_negbin.png"))
-```
+![Distribuição espacial dos resíduos de trabalho — GWR-NB.](figuras_output/mapa_residuos_gwr_negbin.png)
 
 ::: {.callout-note}
 ## Nota: distrito de Itaim Paulista
