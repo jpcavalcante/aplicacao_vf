@@ -70,7 +70,7 @@ aplicacao_vf/
 ├── arquivos_auxiliares/
 │   ├── envel_pois                  ← script de envelope simulado Poisson
 │   └── envel_nbin                  ← script de envelope simulado BN
-├── figuras_output/                 ← todas as figuras geradas por script_mestrado.R
+├── Script_aplicacao/figuras_output/                 ← todas as figuras geradas por script_mestrado.R
 ├── _cache/
 │   └── mod_gwr.rds                 ← modelo GWR serializado
 ├── script_mestrado.R               ← script principal de análise
@@ -80,7 +80,7 @@ aplicacao_vf/
 ### Sequência de execução
 
 ```r
-# Etapa 1 — estimação dos modelos e geração das figuras em figuras_output/ (~2 h)
+# Etapa 1 — estimação dos modelos e geração das figuras em Script_aplicacao/figuras_output/ (~2 h)
 source("script_mestrado.R")
 
 # Etapa 2 — renderização do documento
@@ -193,7 +193,7 @@ ggsave(file.path(dir_output, "mapa_vf_2018_2022.png"),
 ```
 :::
 
-![Distribuição dos casos notificados de violência física (2018–2022). Asterisco = distrito com zero casos.](figuras_output/mapa_vf_2018_2022.png)
+![Distribuição dos casos notificados de violência física (2018–2022). Asterisco = distrito com zero casos.](Script_aplicacao/figuras_output/mapa_vf_2018_2022.png)
 
 ::: {.callout-note collapse="true"}
 ## Código — mapa de círculos (`script_mestrado.R` — Seção 4)
@@ -227,7 +227,7 @@ ggsave(file.path(dir_output, "mapa_vf_circulos.png"),
 ```
 :::
 
-![Mapa de círculos proporcionais — casos notificados de violência física.](figuras_output/mapa_vf_circulos.png)
+![Mapa de círculos proporcionais — casos notificados de violência física.](Script_aplicacao/figuras_output/mapa_vf_circulos.png)
 
 ---
 
@@ -310,7 +310,7 @@ ggsave(file.path(dir_output, "mapa_taxa_padronizada_vf_2018_2022.png"),
 ```
 :::
 
-![Taxa de Incidência Padronizada (TIP) por distrito. Asterisco = zero casos.](figuras_output/mapa_taxa_padronizada_vf_2018_2022.png)
+![Taxa de Incidência Padronizada (TIP) por distrito. Asterisco = zero casos.](Script_aplicacao/figuras_output/mapa_taxa_padronizada_vf_2018_2022.png)
 
 ### Medidas resumo
 
@@ -368,7 +368,7 @@ dev.off()
 ```
 :::
 
-![Boxplot robusto (adjbox) da TIP com identificação dos outliers.](figuras_output/boxplot_robusto_taxa_padronizada.png)
+![Boxplot robusto (adjbox) da TIP com identificação dos outliers.](Script_aplicacao/figuras_output/boxplot_robusto_taxa_padronizada.png)
 
 ### Índice de Moran global
 
@@ -517,15 +517,15 @@ walk(vars_descr, function(v) {
 #### Grupo 1 — Socioeconômico e Demográfico
 
 ::: {layout-ncol=2}
-![alfab](figuras_output/mapa_alfab.png){fig-alt="Mapa: alfabetização"}
+![alfab](Script_aplicacao/figuras_output/mapa_alfab.png){fig-alt="Mapa: alfabetização"}
 
-![ate1mora](figuras_output/mapa_ate1mora.png){fig-alt="Mapa: 1 morador"}
+![ate1mora](Script_aplicacao/figuras_output/mapa_ate1mora.png){fig-alt="Mapa: 1 morador"}
 
-![mais5](figuras_output/mapa_mais5.png){fig-alt="Mapa: 5+ moradores"}
+![mais5](Script_aplicacao/figuras_output/mapa_mais5.png){fig-alt="Mapa: 5+ moradores"}
 
-![mulher_resp](figuras_output/mapa_mulher_resp.png){fig-alt="Mapa: resp. mulher"}
+![mulher_resp](Script_aplicacao/figuras_output/mapa_mulher_resp.png){fig-alt="Mapa: resp. mulher"}
 
-![rendap](figuras_output/mapa_rendap.png){fig-alt="Mapa: renda padronizada"}
+![rendap](Script_aplicacao/figuras_output/mapa_rendap.png){fig-alt="Mapa: renda padronizada"}
 :::
 
 ::: {.callout-note collapse="true"}
@@ -566,7 +566,7 @@ dev.copy(png, file.path(dir_output, "boxplot_robusto_grupo1.png"),
 ```
 :::
 
-![Boxplot robusto — Grupo 1](figuras_output/boxplot_robusto_grupo1.png)
+![Boxplot robusto — Grupo 1](Script_aplicacao/figuras_output/boxplot_robusto_grupo1.png)
 
 | Medida | alfab | ate1mora | mais5 | mulher\_resp | rendap |
 |---|---|---|---|---|---|
@@ -583,12 +583,12 @@ dev.copy(png, file.path(dir_output, "boxplot_robusto_grupo1.png"),
 #### Grupo 2 — Estrutura Domiciliar
 
 ::: {layout-ncol=2}
-![banheiro1](figuras_output/mapa_banheiro1.png){fig-alt="Mapa: banheiro exclusivo"}
+![banheiro1](Script_aplicacao/figuras_output/mapa_banheiro1.png){fig-alt="Mapa: banheiro exclusivo"}
 
-![comodo](figuras_output/mapa_comodo.png){fig-alt="Mapa: habitações coletivas"}
+![comodo](Script_aplicacao/figuras_output/mapa_comodo.png){fig-alt="Mapa: habitações coletivas"}
 :::
 
-![Boxplot robusto — Grupo 2](figuras_output/boxplot_robusto_grupo2.png)
+![Boxplot robusto — Grupo 2](Script_aplicacao/figuras_output/boxplot_robusto_grupo2.png)
 
 | Medida | banheiro1 | comodo |
 |---|---|---|
@@ -605,18 +605,18 @@ dev.copy(png, file.path(dir_output, "boxplot_robusto_grupo1.png"),
 #### Grupo 3 — Estrutura Familiar
 
 ::: {layout-ncol=2}
-![ambos](figuras_output/mapa_ambos.png){fig-alt="Mapa: ambos"}
+![ambos](Script_aplicacao/figuras_output/mapa_ambos.png){fig-alt="Mapa: ambos"}
 
-![plmenos1](figuras_output/mapa_plmenos1.png){fig-alt="Mapa: plmenos1"}
+![plmenos1](Script_aplicacao/figuras_output/mapa_plmenos1.png){fig-alt="Mapa: plmenos1"}
 
-![composta](figuras_output/mapa_composta.png){fig-alt="Mapa: composta"}
+![composta](Script_aplicacao/figuras_output/mapa_composta.png){fig-alt="Mapa: composta"}
 
-![estend](figuras_output/mapa_estend.png){fig-alt="Mapa: estendida"}
+![estend](Script_aplicacao/figuras_output/mapa_estend.png){fig-alt="Mapa: estendida"}
 
-![nuclear](figuras_output/mapa_nuclear.png){fig-alt="Mapa: nuclear"}
+![nuclear](Script_aplicacao/figuras_output/mapa_nuclear.png){fig-alt="Mapa: nuclear"}
 :::
 
-![Boxplot robusto — Grupo 3](figuras_output/boxplot_robusto_grupo3.png)
+![Boxplot robusto — Grupo 3](Script_aplicacao/figuras_output/boxplot_robusto_grupo3.png)
 
 | Medida | ambos | plmenos1 | composta | estend | nuclear |
 |---|---|---|---|---|---|
@@ -633,12 +633,12 @@ dev.copy(png, file.path(dir_output, "boxplot_robusto_grupo1.png"),
 #### Grupo 4 — Espaços de Convivência Social
 
 ::: {layout-ncol=2}
-![igrejas](figuras_output/mapa_igrejas.png){fig-alt="Mapa: igrejas por mil hab"}
+![igrejas](Script_aplicacao/figuras_output/mapa_igrejas.png){fig-alt="Mapa: igrejas por mil hab"}
 
-![bares](figuras_output/mapa_bares.png){fig-alt="Mapa: bares por mil hab"}
+![bares](Script_aplicacao/figuras_output/mapa_bares.png){fig-alt="Mapa: bares por mil hab"}
 :::
 
-![Boxplot robusto — Grupo 4](figuras_output/boxplot_robusto_grupo4.png)
+![Boxplot robusto — Grupo 4](Script_aplicacao/figuras_output/boxplot_robusto_grupo4.png)
 
 | Medida | igrejas | bares |
 |---|---|---|
@@ -707,7 +707,7 @@ dev.off()
 ```
 :::
 
-![Matriz de correlação de Pearson entre as variáveis explicativas.](figuras_output/matriz_correlacao_variaveis.png)
+![Matriz de correlação de Pearson entre as variáveis explicativas.](Script_aplicacao/figuras_output/matriz_correlacao_variaveis.png)
 
 ### Dendrograma de correlação
 
@@ -726,7 +726,7 @@ dev.off()
 ```
 :::
 
-![Agrupamento hierárquico por dissimilaridade de Pearson (método Ward).](figuras_output/dendrograma_correlação.png)
+![Agrupamento hierárquico por dissimilaridade de Pearson (método Ward).](Script_aplicacao/figuras_output/dendrograma_correlação.png)
 
 ---
 
@@ -810,7 +810,7 @@ ggsave(file.path(dir_output, "mapa_residuos_poisson.png"),
 ```
 :::
 
-![Resíduos de desvio — Modelo de Poisson.](figuras_output/mapa_residuos_poisson.png)
+![Resíduos de desvio — Modelo de Poisson.](Script_aplicacao/figuras_output/mapa_residuos_poisson.png)
 
 ### Envelope simulado
 
@@ -828,7 +828,7 @@ detach(tab)
 ```
 :::
 
-![Envelope simulado — Poisson. Pontos fora do envelope indicam inadequação do modelo.](figuras_output/envelope_poisson.png)
+![Envelope simulado — Poisson. Pontos fora do envelope indicam inadequação do modelo.](Script_aplicacao/figuras_output/envelope_poisson.png)
 
 ---
 
@@ -905,7 +905,7 @@ detach(tab)
 ```
 :::
 
-![Envelope simulado — Binomial Negativa.](figuras_output/envelope_negbin.png)
+![Envelope simulado — Binomial Negativa.](Script_aplicacao/figuras_output/envelope_negbin.png)
 
 ### Resíduos — distribuição espacial
 
@@ -934,7 +934,7 @@ ggsave(file.path(dir_output, "mapa_residuos_negbin.png"),
 ```
 :::
 
-![Resíduos de desvio — Binomial Negativa.](figuras_output/mapa_residuos_negbin.png)
+![Resíduos de desvio — Binomial Negativa.](Script_aplicacao/figuras_output/mapa_residuos_negbin.png)
 
 ### Autocorrelação espacial dos resíduos
 
@@ -996,7 +996,7 @@ ggsave(file.path(dir_output, "mapa_lisa_tx_pad.png"),
 ```
 :::
 
-![Mapa LISA — agrupamentos locais da TIP (α = 10%).](figuras_output/mapa_lisa_tx_pad.png)
+![Mapa LISA — agrupamentos locais da TIP (α = 10%).](Script_aplicacao/figuras_output/mapa_lisa_tx_pad.png)
 
 ```{r}
 #| label: lisa-tabela
@@ -1149,7 +1149,7 @@ ggsave(file.path(dir_output, "grafico_banda_adaptative_aic.png"),
 ```
 :::
 
-![Convergência da Seção Áurea — cenário selecionado (adaptativa, AICc, sem igrejas).](figuras_output/grafico_banda_adaptative_aic.png)
+![Convergência da Seção Áurea — cenário selecionado (adaptativa, AICc, sem igrejas).](Script_aplicacao/figuras_output/grafico_banda_adaptative_aic.png)
 
 As iterações do algoritmo para o cenário selecionado (adaptativa, AICc) são apresentadas na tabela a seguir, evidenciando convergência estável em AIC ≈ 750:
 
@@ -1281,7 +1281,7 @@ walk(
 
 #### Habitações coletivas informais (`comodo`)
 
-![Estimativas locais — comodo](figuras_output/mapa_param_gwr_bn_comodo.png)
+![Estimativas locais — comodo](Script_aplicacao/figuras_output/mapa_param_gwr_bn_comodo.png)
 
 O coeficiente de `comodo` apresenta efeito positivo nos distritos periféricos,
 indicando que a maior presença de habitações coletivas informais está associada,
@@ -1301,7 +1301,7 @@ nessas localidades, a maior incidência de violência física notificada.
 
 #### Família composta (`composta`)
 
-![Estimativas locais — composta](figuras_output/mapa_param_gwr_bn_composta.png)
+![Estimativas locais — composta](Script_aplicacao/figuras_output/mapa_param_gwr_bn_composta.png)
 
 O efeito da variável `composta` é predominantemente negativo nas regiões
 oeste e noroeste do município, sugerindo que, nessas áreas, a estrutura
@@ -1322,7 +1322,7 @@ de um possível papel protetor de arranjos familiares complexos.
 
 #### Domicílios com 5 ou mais moradores (`mais5`)
 
-![Estimativas locais — mais5](figuras_output/mapa_param_gwr_bn_mais5.png)
+![Estimativas locais — mais5](Script_aplicacao/figuras_output/mapa_param_gwr_bn_mais5.png)
 
 O coeficiente de `mais5` apresenta efeito positivo pronunciado nas periferias
 da Zona Leste. A amplitude interquartil dos coeficientes locais evidencia
@@ -1343,7 +1343,7 @@ substancialmente entre os distritos.
 
 #### Domicílios chefiados por mulheres (`mulher_resp`)
 
-![Estimativas locais — mulher_resp](figuras_output/mapa_param_gwr_bn_mulher_resp.png)
+![Estimativas locais — mulher_resp](Script_aplicacao/figuras_output/mapa_param_gwr_bn_mulher_resp.png)
 
 Embora estatisticamente não significativa no modelo global, a variável
 `mulher_resp` apresenta coeficientes locais significativos em regiões
@@ -1365,7 +1365,7 @@ a premissa de estacionariedade dos efeitos.
 
 #### Parâmetro de superdispersão local ($\alpha$)
 
-![Estimativas locais do parâmetro α](figuras_output/mapa_param_gwr_bn_alpha.png)
+![Estimativas locais do parâmetro α](Script_aplicacao/figuras_output/mapa_param_gwr_bn_alpha.png)
 
 Valores mais elevados de $\hat{\alpha}$ na Zona Leste indicam maior variância
 não explicada pelo modelo nessas localidades, sugerindo a presença de
@@ -1413,7 +1413,7 @@ ggsave(file.path(dir_output, "mapa_residuos_gwr_negbin.png"),
 ```
 :::
 
-![Distribuição espacial dos resíduos de trabalho — GWR-NB.](figuras_output/mapa_residuos_gwr_negbin.png)
+![Distribuição espacial dos resíduos de trabalho — GWR-NB.](Script_aplicacao/figuras_output/mapa_residuos_gwr_negbin.png)
 
 ::: {.callout-note}
 ## Nota: distrito de Itaim Paulista
