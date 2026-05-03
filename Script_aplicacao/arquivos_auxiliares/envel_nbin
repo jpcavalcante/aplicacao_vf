@@ -1,21 +1,21 @@
 #------------------------------------------------------------#
-# Para rodar este programa deixe no objeto fit.model a saída
-# do ajuste da  regressão com erros binomial negativa e
-# ligação log.  Deixe  os dados disponíveis através do comando
+# Para rodar este programa deixe no objeto fit.model a saï¿½da
+# do ajuste da  regressï¿½o com erros binomial negativa e
+# ligaï¿½ï¿½o log.  Deixe  os dados disponï¿½veis atravï¿½s do comando
 # attach(...). Depois  use  o comando source(...) no R ou
-# S-Plus para executar  o programa. A sequência de comandos
-# é a seguinte:
+# S-Plus para executar  o programa. A sequï¿½ncia de comandos
+# ï¿½ a seguinte:
 #
 #       fit.model <- ajuste
 #       attach(dados)
 #       source("envel_nbin")
 #
-# A saída será o gráfico de  envelope para o resíduo
-# componente  do desvio padronizado. Para colocar um título
-# no gráfico após a saída use title("..."). Para usar outras
-# ligações incluir em glm.nb o termo link=identity para
-# ligação identidade ou o termo link=sqrt para 
-# ligação raíz quadrada.
+# A saï¿½da serï¿½ o grï¿½fico de  envelope para o resï¿½duo
+# componente  do desvio padronizado. Para colocar um tï¿½tulo
+# no grï¿½fico apï¿½s a saï¿½da use title("..."). Para usar outras
+# ligaï¿½ï¿½es incluir em glm.nb o termo link=identity para
+# ligaï¿½ï¿½o identidade ou o termo link=sqrt para 
+# ligaï¿½ï¿½o raï¿½z quadrada.
 #------------------------------------------------------------#
 par(mfrow=c(1,1))
 X <- model.matrix(fit.model)

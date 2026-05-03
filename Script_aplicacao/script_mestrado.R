@@ -488,9 +488,8 @@ ggsave(file.path(dir_output, "mapa_residuos_negbin.png"),
 
 fit.model <- mod_nb
 attach(tab, warn.conflicts = FALSE)
+png(file.path(dir_output, "envelope_negbin.png"), width = 800, height = 800, res = 150)
 source(file.path(dir_aux, "envel_nbin"), local = TRUE)
-dev.copy(png, file.path(dir_output, "envelope_negbin.png"),
-         width = 800, height = 800, res = 150)
 dev.off()
 detach(tab)
 

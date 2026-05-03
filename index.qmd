@@ -314,18 +314,17 @@ ggsave(file.path(dir_output, "mapa_taxa_padronizada_vf_2018_2022.png"),
 
 ### Medidas resumo
 
-```{r}
-#| label: tabela-tip
-#| tbl-cap: "Estatísticas descritivas da TIP."
+| Medida | Valor |
+|---|---|
+| Mínimo | 0,000 |
+| 1º Quartil | 0,407 |
+| Mediana | 0,629 |
+| Média | 0,800 |
+| 3º Quartil | 0,912 |
+| Máximo | 5,600 |
+| Desvio-padrão | 0,804 |
 
-summary_tip <- summary(distritos$tip)
-data.frame(
-  Estatística = c(names(summary_tip), "Desvio-padrão", "Variância"),
-  Valor       = round(c(as.numeric(summary_tip),
-                        sd(distritos$tip,  na.rm = TRUE),
-                        var(distritos$tip, na.rm = TRUE)), 4)
-) |> kable() |> kable_styling(full_width = FALSE)
-```
+: Estatísticas descritivas da TIP.
 
 ### Boxplot robusto
 
@@ -443,44 +442,24 @@ A variável de renda foi padronizada pelo método mínimo-máximo no intervalo
 
 ### Quadro de variáveis
 
-```{r}
-#| label: tabela-variaveis
-#| tbl-cap: "Variáveis explicativas por grupo temático."
-#| cache: false
+| Grupo | Variável | Descrição |
+|---|---|---|
+| G1 – Socioeconômico e Demográfico | alfab | % pessoas ≥ 15 anos alfabetizadas |
+| G1 – Socioeconômico e Demográfico | ate1mora | % domicílios com apenas 1 morador |
+| G1 – Socioeconômico e Demográfico | mais5 | % domicílios com 5 ou mais moradores |
+| G1 – Socioeconômico e Demográfico | mulher_resp | % domicílios cujo responsável é do sexo feminino |
+| G1 – Socioeconômico e Demográfico | rendap | Renda média distrital padronizada (0–100) |
+| G2 – Estrutura Domiciliar | banheiro1 | % domicílios com banheiro exclusivo |
+| G2 – Estrutura Domiciliar | comodo | % domicílios em habitações coletivas informais (cortiços) |
+| G3 – Estrutura Familiar | ambos | % domicílios: casal + filhos apenas do casal |
+| G3 – Estrutura Familiar | plmenos1 | % domicílios: casal + ≥1 filho só do responsável/cônjuge |
+| G3 – Estrutura Familiar | composta | % domicílios do tipo composto |
+| G3 – Estrutura Familiar | estend | % domicílios do tipo estendido |
+| G3 – Estrutura Familiar | nuclear | % domicílios do tipo nuclear |
+| G4 – Espaços de Convivência Social | igrejas | Igrejas por mil habitantes |
+| G4 – Espaços de Convivência Social | bares | Bares por mil habitantes |
 
-data.frame(
-  Grupo = c(
-    rep("G1 – Socioeconômico e Demográfico", 5),
-    rep("G2 – Estrutura Domiciliar", 2),
-    rep("G3 – Estrutura Familiar", 5),
-    rep("G4 – Espaços de Convivência Social", 2)
-  ),
-  Variável = c(
-    "alfab","ate1mora","mais5","mulher_resp","rendap",
-    "banheiro1","comodo",
-    "ambos","plmenos1","composta","estend","nuclear",
-    "igrejas","bares"
-  ),
-  Descrição = c(
-    "% pessoas ≥ 15 anos alfabetizadas",
-    "% domicílios com apenas 1 morador",
-    "% domicílios com 5 ou mais moradores",
-    "% domicílios cujo responsável é do sexo feminino",
-    "Renda média distrital padronizada (0–100)",
-    "% domicílios com banheiro exclusivo",
-    "% domicílios em habitações coletivas informais (cortiços)",
-    "% domicílios: casal + filhos apenas do casal",
-    "% domicílios: casal + ≥1 filho só do responsável/cônjuge",
-    "% domicílios do tipo composto",
-    "% domicílios do tipo estendido",
-    "% domicílios do tipo nuclear",
-    "Igrejas por mil habitantes",
-    "Bares por mil habitantes"
-  )
-) |> kable() |>
-  kable_styling(full_width = FALSE, bootstrap_options = "striped") |>
-  collapse_rows(columns = 1, valign = "top")
-```
+: Variáveis explicativas por grupo temático.
 
 ### Transformação das variáveis
 
@@ -589,6 +568,18 @@ dev.copy(png, file.path(dir_output, "boxplot_robusto_grupo1.png"),
 
 ![Boxplot robusto — Grupo 1](figuras_output/boxplot_robusto_grupo1.png)
 
+| Medida | alfab | ate1mora | mais5 | mulher\_resp | rendap |
+|---|---|---|---|---|---|
+| Média | 97,74 | 22,87 | 6,97 | 52,38 | 25,96 |
+| Desvio-padrão | 1,37 | 6,75 | 3,01 | 2,18 | 25,66 |
+| Mínimo | 92,12 | 14,98 | 1,28 | 44,16 | 0,00 |
+| 1º Quartil | 96,91 | 18,10 | 4,76 | 51,27 | 7,24 |
+| Mediana | 97,98 | 20,51 | 7,36 | 52,39 | 16,32 |
+| 3º Quartil | 98,86 | 24,26 | 9,41 | 53,56 | 37,37 |
+| Máximo | 99,69 | 46,33 | 11,76 | 59,98 | 100,00 |
+
+: Medidas-resumo — Grupo 1 (Socioeconômico e Demográfico).
+
 #### Grupo 2 — Estrutura Domiciliar
 
 ::: {layout-ncol=2}
@@ -598,6 +589,18 @@ dev.copy(png, file.path(dir_output, "boxplot_robusto_grupo1.png"),
 :::
 
 ![Boxplot robusto — Grupo 2](figuras_output/boxplot_robusto_grupo2.png)
+
+| Medida | banheiro1 | comodo |
+|---|---|---|
+| Média | 61,65 | 0,85 |
+| Desvio-padrão | 16,77 | 1,28 |
+| Mínimo | 27,23 | 0,00 |
+| 1º Quartil | 50,36 | 0,24 |
+| Mediana | 64,97 | 0,49 |
+| 3º Quartil | 74,70 | 0,84 |
+| Máximo | 92,94 | 8,27 |
+
+: Medidas-resumo — Grupo 2 (Estrutura Domiciliar).
 
 #### Grupo 3 — Estrutura Familiar
 
@@ -615,6 +618,18 @@ dev.copy(png, file.path(dir_output, "boxplot_robusto_grupo1.png"),
 
 ![Boxplot robusto — Grupo 3](figuras_output/boxplot_robusto_grupo3.png)
 
+| Medida | ambos | plmenos1 | composta | estend | nuclear |
+|---|---|---|---|---|---|
+| Média | 56,28 | 10,68 | 1,77 | 13,56 | 61,70 |
+| Desvio-padrão | 4,86 | 2,55 | 1,37 | 3,67 | 5,37 |
+| Mínimo | 46,90 | 5,16 | 0,23 | 5,67 | 41,37 |
+| 1º Quartil | 53,02 | 9,20 | 0,81 | 11,32 | 60,43 |
+| Mediana | 55,28 | 10,95 | 1,14 | 14,82 | 63,04 |
+| 3º Quartil | 59,05 | 12,85 | 2,36 | 15,94 | 65,17 |
+| Máximo | 68,70 | 16,47 | 5,42 | 24,01 | 68,76 |
+
+: Medidas-resumo — Grupo 3 (Estrutura Familiar).
+
 #### Grupo 4 — Espaços de Convivência Social
 
 ::: {layout-ncol=2}
@@ -625,52 +640,42 @@ dev.copy(png, file.path(dir_output, "boxplot_robusto_grupo1.png"),
 
 ![Boxplot robusto — Grupo 4](figuras_output/boxplot_robusto_grupo4.png)
 
-### Medidas resumo
+| Medida | igrejas | bares |
+|---|---|---|
+| Média | 1,74 | 3,05 |
+| Desvio-padrão | 1,05 | 1,24 |
+| Mínimo | 0,34 | 0,76 |
+| 1º Quartil | 1,37 | 2,36 |
+| Mediana | 1,65 | 2,71 |
+| 3º Quartil | 2,00 | 3,31 |
+| Máximo | 10,26 | 9,79 |
 
-```{r}
-#| label: tabela-resumo
-#| tbl-cap: "Estatísticas descritivas das variáveis explicativas."
+: Medidas-resumo — Grupo 4 (Espaços de Convivência Social).
 
-vars_descr <- c("alfab","ate1mora","mais5","comodo","ambos","plmenos1",
-                "composta","estend","nuclear","mulher_resp","banheiro1",
-                "rendap","igrejas","bares")
-
-tab %>%
-  dplyr::select(all_of(vars_descr)) %>%
-  pivot_longer(everything(), names_to = "Variável", values_to = "Valor") %>%
-  group_by(Variável) %>%
-  summarise(
-    Média   = round(mean(Valor,   na.rm = TRUE), 2),
-    DP      = round(sd(Valor,     na.rm = TRUE), 2),
-    Mín     = round(min(Valor,    na.rm = TRUE), 2),
-    Mediana = round(median(Valor, na.rm = TRUE), 2),
-    Máx     = round(max(Valor,    na.rm = TRUE), 2),
-    .groups = "drop"
-  ) |>
-  kable() |>
-  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))
-```
+::: {.callout-note}
+## Medidas-resumo por grupo
+As estatísticas descritivas de cada grupo de variáveis estão apresentadas nas tabelas acima, após os respectivos boxplots robustos.
+:::
 
 ### Correlação com a resposta
 
-```{r}
-#| label: cor-resposta
-#| tbl-cap: "Correlação de Pearson entre a TIP e cada variável explicativa."
+| Variável | r de Pearson | Valor-p |
+|---|---|---|
+| alfab | -0,524 | < 0,001 |
+| mais5 | 0,509 | < 0,001 |
+| plmenos1 | 0,462 | < 0,001 |
+| banheiro1 | 0,431 | < 0,001 |
+| estend | 0,427 | < 0,001 |
+| ambos | -0,410 | < 0,001 |
+| composta | -0,388 | < 0,001 |
+| ate1mora | -0,354 | < 0,001 |
+| igrejas | 0,307 | 0,002 |
+| nuclear | 0,252 | 0,013 |
+| mulher_resp | 0,228 | 0,026 |
+| bares | -0,165 | < 0,001 |
+| comodo | -0,025 | 0,807 |
 
-rotulos_descr <- vars_descr   # nomes originais como rótulos
-
-lapply(seq_along(vars_descr), function(i) {
-  t <- cor.test(distritos$tip, tab[[vars_descr[i]]], method = "pearson")
-  data.frame(
-    Variável     = rotulos_descr[i],
-    `r de Pearson` = round(t$estimate, 3),
-    `Valor-p`    = formatC(t$p.value, format = "e", digits = 2)
-  )
-}) |>
-  bind_rows() |>
-  arrange(desc(abs(`r.de.Pearson`))) |>
-  kable() |> kable_styling(full_width = FALSE, bootstrap_options = "striped")
-```
+: Correlação de Pearson entre a TIP e cada variável explicativa.
 
 ::: {.callout-note}
 ## Critérios de seleção de variáveis
@@ -753,37 +758,26 @@ ll0_p <- as.numeric(logLik(update(mod_pois, . ~ 1)))
 
 ### Coeficientes
 
-```{r}
-#| label: coef-pois
-#| tbl-cap: "Coeficientes do modelo de Poisson."
+| Variável | Coeficiente | Erro Padrão | Estatística z | Valor-p |
+|---|---|---|---|---|
+| (Intercepto) | -1,879 | 0,487 | -3,855 | < 0,001 |
+| comodo | 0,198 | 0,021 | 9,268 | < 0,001 |
+| composta | -0,157 | 0,033 | -4,697 | < 0,001 |
+| mais5 | 0,221 | 0,011 | 20,134 | < 0,001 |
+| mulher_resp | 0,004 | 0,009 | 0,467 | 0,641 |
+| igrejas | -0,140 | 0,036 | -3,882 | < 0,001 |
 
-coef_p <- summary(mod_pois)$coefficients
-data.frame(
-  Variável   = rownames(coef_p),
-  Coeficiente = round(coef_p[, "Estimate"],    4),
-  EP          = round(coef_p[, "Std. Error"],  4),
-  z           = round(coef_p[, "z value"],     4),
-  `Valor-p`   = formatC(coef_p[, "Pr(>|z|)"], format = "e", digits = 2)
-) |> kable() |> kable_styling(full_width = FALSE, bootstrap_options = "striped")
-```
+: Coeficientes do modelo de Poisson.
 
 ### Métricas de ajuste
 
-```{r}
-#| label: metricas-pois
-#| tbl-cap: "Indicadores de ajuste — Poisson."
+| Estatística | Valor |
+|---|---|
+| Desvio Residual | 1.595,069 |
+| Graus de Liberdade | 90 |
+| Razão Desvio/GL | 17,72 |
 
-n_p <- nobs(mod_pois); k_p <- length(coef(mod_pois))
-data.frame(
-  Estatística = c("Log-verossimilhança","Pseudo R² (McFadden)",
-                  "Desvio Residual","Graus de Liberdade",
-                  "Razão Desvio/GL","AICc"),
-  Valor = round(c(ll_p, 1 - ll_p / ll0_p,
-                  deviance(mod_pois), df.residual(mod_pois),
-                  deviance(mod_pois) / df.residual(mod_pois),
-                  AIC(mod_pois) + 2 * k_p * (k_p + 1) / (n_p - k_p - 1)), 4)
-) |> kable() |> kable_styling(full_width = FALSE)
-```
+: Indicadores de ajuste — Poisson.
 
 ::: {.callout-warning}
 ## Diagnóstico: superdispersão
@@ -868,44 +862,32 @@ Os coeficientes são estimados na escala logarítmica; $\exp(\hat\beta)$ represe
 o fator multiplicativo sobre a contagem esperada, interpretado como razão de
 incidência associada a um incremento unitário na covariável correspondente.
 
-```{r}
-#| label: coef-nb
-#| tbl-cap: "Coeficientes do modelo Binomial Negativa (com exp(β))."
+| Variável | Coeficiente | exp(β) | Erro Padrão | Estatística z | Valor-p |
+|---|---|---|---|---|---|
+| (Intercepto) | -2,815 | 0,060 | 1,759 | -1,600 | 0,110 |
+| comodo | 0,134 | 1,143 | 0,051 | 2,604 | 0,009 |
+| composta | -0,138 | 0,871 | 0,075 | -1,838 | 0,066 |
+| mais5 | 0,154 | 1,166 | 0,030 | 5,135 | < 0,001 |
+| mulher_resp | 0,026 | 1,026 | 0,032 | 0,821 | 0,412 |
+| igrejas | 0,044 | 1,045 | 0,070 | 0,637 | 0,525 |
 
-coef_nb <- summary(mod_nb)$coefficients
-data.frame(
-  Variável    = rownames(coef_nb),
-  Coeficiente = round(coef_nb[, "Estimate"],       4),
-  `exp(β)`    = round(exp(coef_nb[, "Estimate"]),  4),
-  EP          = round(coef_nb[, "Std. Error"],     4),
-  `Valor-p`   = formatC(coef_nb[, "Pr(>|z|)"], format = "e", digits = 3)
-) |> kable() |> kable_styling(full_width = FALSE, bootstrap_options = "striped")
-```
+: Coeficientes do modelo Binomial Negativa.
 
-```{r}
-#| label: theta-nb
-
-cat("Theta (1/alpha):", round(mod_nb$theta, 4), "\n")
-cat("Alpha (superdispersão = 1/theta):", round(1 / mod_nb$theta, 4), "\n")
-```
+A estimativa do parâmetro de superdispersão foi **α = 4,19** (erro padrão = 0,7), confirmando a presença de superdispersão nos dados.
 
 
 
 ### Métricas de ajuste
 
-```{r}
-#| label: metricas-nb
-#| tbl-cap: "Indicadores de ajuste — Binomial Negativa."
+| Estatística | Valor |
+|---|---|
+| Log-verossimilhança | -384,465 |
+| Pseudo R² (McFadden) | 0,185 |
+| Desvio Residual | 101,057 |
+| AIC | 784,929 |
+| AICc | 786,202 |
 
-aicc_nb <- AIC(mod_nb) + 2 * k_nb * (k_nb + 1) / (n_nb - k_nb - 1)
-data.frame(
-  Estatística = c("Log-verossimilhança","Pseudo R² (McFadden)",
-                  "AIC","AICc","Theta","Alpha"),
-  Valor = round(c(ll_nb, 1 - ll_nb / ll0_nb,
-                  AIC(mod_nb), aicc_nb,
-                  mod_nb$theta, 1 / mod_nb$theta), 4)
-) |> kable() |> kable_styling(full_width = FALSE)
-```
+: Indicadores de ajuste — Binomial Negativa.
 
 ### Envelope simulado
 
@@ -956,22 +938,12 @@ ggsave(file.path(dir_output, "mapa_residuos_negbin.png"),
 
 ### Autocorrelação espacial dos resíduos
 
-```{r}
-#| label: moran-nb
-#| tbl-cap: "Índice de Moran dos resíduos — Binomial Negativa."
-#| cache: true
+| Estatística | Valor |
+|---|---|
+| Moran I | 0,1550 |
+| Valor-p | 0,0100 |
 
-distritos$resid_nb <- residuals(mod_nb, type = "deviance")
-coords_nb    <- cbind(tab$long_utm, tab$lat_utm)
-nb_knn       <- knn2nb(knearneigh(coords_nb, k = 4))
-w_knn        <- nb2listw(nb_knn, style = "W")
-moran_nb_res <- moran.mc(distritos$resid_nb, listw = w_knn, nsim = 999)
-
-data.frame(
-  Estatística = c("Moran I", "Valor-p"),
-  Valor = c(round(moran_nb_res$statistic, 4), round(moran_nb_res$p.value, 4))
-) |> kable() |> kable_styling(full_width = FALSE)
-```
+: Índice de Moran dos resíduos — Binomial Negativa.
 
 ::: {.callout-warning}
 ## Autocorrelação residual persistente
@@ -981,24 +953,7 @@ Conforme Comber et al. a decisão pelo uso do GWR deve ser fundamentada em crit�
 
 ### Excesso de zeros
 
-```{r}
-#| label: zeros-nb
-#| tbl-cap: "Zeros observados vs esperados pelo modelo Binomial Negativa."
-
-mu_hat    <- predict(mod_nb, type = "response")
-theta_nb  <- mod_nb$theta
-zeros_obs <- sum(tab$VF_2018_2022 == 0)
-zeros_esp <- round(sum((theta_nb / (theta_nb + mu_hat))^theta_nb), 2)
-
-data.frame(
-  Indicador = c("Zeros observados", "Zeros esperados (BN)", "Razão obs/esp"),
-  Valor     = c(zeros_obs, zeros_esp, round(zeros_obs / zeros_esp, 3))
-) |> kable() |> kable_styling(full_width = FALSE)
-```
-
-A razão observada próxima da unidade indica que a distribuição Binomial Negativa
-acomoda adequadamente a frequência de zeros presente nos dados, dispensando a
-especificação de um modelo inflacionado de zeros (ZINB).
+A proporção esperada de zeros pelo modelo foi de **1,51%**, enquanto a proporção observada foi de **2,1%**. A proximidade entre esses valores indica que a distribuição Binomial Negativa acomoda adequadamente a frequência de zeros presente nos dados, dispensando a especificação de um modelo inflacionado de zeros (ZINB).
 
 ---
 
@@ -1196,6 +1151,25 @@ ggsave(file.path(dir_output, "grafico_banda_adaptative_aic.png"),
 
 ![Convergência da Seção Áurea — cenário selecionado (adaptativa, AICc, sem igrejas).](figuras_output/grafico_banda_adaptative_aic.png)
 
+As iterações do algoritmo para o cenário selecionado (adaptativa, AICc) são apresentadas na tabela a seguir, evidenciando convergência estável em AIC ≈ 750:
+
+| Iteração | h₁ | AIC₁ | h₂ | AIC₂ |
+|---|---|---|---|---|
+| 1 | 17,10 | 1083,36 | 24,57 | 1067,24 |
+| 2 | 24,57 | 1067,24 | 29,19 | 1057,14 |
+| 3 | 29,19 | 1057,14 | 32,05 | 1120,37 |
+| 4 | 27,43 | 1090,21 | 29,19 | 1057,14 |
+| 5 | 29,19 | 1057,14 | 30,28 | 1073,43 |
+| 6 | 45,33 | 1135,27 | 50,67 | 1165,77 |
+| 7 | 42,02 | 1277,63 | 45,33 | 1135,27 |
+| 8 | 45,33 | 1135,27 | 47,37 | 1132,91 |
+| 9 | 73,34 | 752,62 | 81,99 | 756,31 |
+| 10 | 67,99 | 750,59 | 73,34 | 752,62 |
+| 11 | 64,68 | 750,35 | 67,99 | 750,59 |
+| 12 | 62,64 | 750,08 | 64,68 | 750,35 |
+
+: Iterações da função `Golden()` — critério AICc, kernel adaptativo.
+
 ### Ajuste do modelo GWR-NB
 
 ::: {.callout-note collapse="true"}
@@ -1227,24 +1201,15 @@ Em uma primeira análise, foram consideradas as mesmas covariáveis do modelo gl
 
 ### Métricas de ajuste
 
-```{r}
-#| label: metricas-gwr
-#| tbl-cap: "Indicadores de ajuste — GWR Binomial Negativa."
+| Estatística | Valor |
+|---|---|
+| Deviance | 94,833 |
+| AIC | 745,260 |
+| AICc | 756,757 |
+| Pseudo R² | 0,927 |
+| Pseudo R² ajustado | 0,895 |
 
-mod_gwr_path <- "_cache/mod_gwr.rds"
-
-if (file.exists(mod_gwr_path)) {
-  mod_gwr <- readRDS(mod_gwr_path)
-  m <- mod_gwr$measures
-  data.frame(
-    Estatística = c("Deviance","AIC","AICc","Pseudo R²","Pseudo R² ajustado"),
-    Valor       = round(c(m["deviance"], m["AIC"], m["AICc"],
-                          m["pct_ll"],   m["adj_pct_ll"]), 3)
-  ) |> kable() |> kable_styling(full_width = FALSE)
-} else {
-  cat("Execute script_mestrado.R para gerar o modelo e salvar em _cache/.")
-}
-```
+: Indicadores de ajuste — GWR Binomial Negativa (h = 62, kernel adaptativo).
 
 ### Parâmetros estimados — mapas
 
@@ -1322,6 +1287,18 @@ O coeficiente de `comodo` apresenta efeito positivo nos distritos periféricos,
 indicando que a maior presença de habitações coletivas informais está associada,
 nessas localidades, a maior incidência de violência física notificada.
 
+| Medida | Valor |
+|---|---|
+| Média | 0,178 |
+| Desvio-padrão | 0,047 |
+| Mínimo | 0,108 |
+| 1º Quartil | 0,153 |
+| Mediana | 0,184 |
+| 3º Quartil | 0,200 |
+| Máximo | 0,238 |
+
+: Medidas-resumo das estimativas locais — `comodo`.
+
 #### Família composta (`composta`)
 
 ![Estimativas locais — composta](figuras_output/mapa_param_gwr_bn_composta.png)
@@ -1331,6 +1308,18 @@ oeste e noroeste do município, sugerindo que, nessas áreas, a estrutura
 familiar composta está associada a menor incidência de violência — evidência
 de um possível papel protetor de arranjos familiares complexos.
 
+| Medida | Valor |
+|---|---|
+| Média | -0,154 |
+| Desvio-padrão | 0,204 |
+| Mínimo | -0,388 |
+| 1º Quartil | -0,268 |
+| Mediana | -0,136 |
+| 3º Quartil | -0,064 |
+| Máximo | 0,072 |
+
+: Medidas-resumo das estimativas locais — `composta`.
+
 #### Domicílios com 5 ou mais moradores (`mais5`)
 
 ![Estimativas locais — mais5](figuras_output/mapa_param_gwr_bn_mais5.png)
@@ -1339,6 +1328,18 @@ O coeficiente de `mais5` apresenta efeito positivo pronunciado nas periferias
 da Zona Leste. A amplitude interquartil dos coeficientes locais evidencia
 forte não-estacionariedade espacial desta variável, cujo efeito varia
 substancialmente entre os distritos.
+
+| Medida | Valor |
+|---|---|
+| Média | 0,445 |
+| Desvio-padrão | 0,323 |
+| Mínimo | 0,143 |
+| 1º Quartil | 0,282 |
+| Mediana | 0,411 |
+| 3º Quartil | 0,605 |
+| Máximo | 0,830 |
+
+: Medidas-resumo das estimativas locais — `mais5`.
 
 #### Domicílios chefiados por mulheres (`mulher_resp`)
 
@@ -1350,6 +1351,18 @@ específicas do município. Esse resultado ilustra a capacidade do GWR de
 revelar associações espacialmente heterogêneas que permanecem ocultas sob
 a premissa de estacionariedade dos efeitos.
 
+| Medida | Valor |
+|---|---|
+| Média | 0,051 |
+| Desvio-padrão | 0,092 |
+| Mínimo | -0,077 |
+| 1º Quartil | 0,002 |
+| Mediana | 0,032 |
+| 3º Quartil | 0,095 |
+| Máximo | 0,259 |
+
+: Medidas-resumo das estimativas locais — `mulher_resp`.
+
 #### Parâmetro de superdispersão local ($\alpha$)
 
 ![Estimativas locais do parâmetro α](figuras_output/mapa_param_gwr_bn_alpha.png)
@@ -1358,6 +1371,18 @@ Valores mais elevados de $\hat{\alpha}$ na Zona Leste indicam maior variância
 não explicada pelo modelo nessas localidades, sugerindo a presença de
 heterogeneidade não observada ou de covariáveis omitidas relevantes para
 essa região.
+
+| Medida | Valor |
+|---|---|
+| Média | 0,128 |
+| Desvio-padrão | 0,081 |
+| Mínimo | 0,020 |
+| 1º Quartil | 0,053 |
+| Mediana | 0,079 |
+| 3º Quartil | 0,134 |
+| Máximo | 0,384 |
+
+: Medidas-resumo da distribuição do parâmetro de superdispersão local ($\alpha$).
 
 ### Resíduos e diagnóstico espacial
 
@@ -1400,21 +1425,12 @@ pode inflar artificialmente os registros do distrito relativamente à incidênci
 real do fenômeno.
 :::
 
-```{r}
-#| label: moran-gwr
-#| tbl-cap: "Índice de Moran dos resíduos — GWR-NB."
+| Estatística | Valor |
+|---|---|
+| Moran I | -0,0388 |
+| Valor-p | 0,787 |
 
-if (exists("mod_gwr")) {
-  resid_gwr <- as.numeric(mod_gwr$residuals[, 5])
-  moran_gwr <- moran.mc(resid_gwr, listw = w_knn, nsim = 999)
-  data.frame(
-    Estatística = c("Moran I", "Valor-p"),
-    Valor = c(round(moran_gwr$statistic, 4), round(moran_gwr$p.value, 4))
-  ) |> kable() |> kable_styling(full_width = FALSE)
-} else {
-  cat("Modelo GWR não carregado. Execute script_mestrado.R primeiro.")
-}
-```
+: Índice de Moran dos resíduos — GWR-NB.
 
 ::: {.callout-tip}
 ## GWR absorve a estrutura espacial residual
