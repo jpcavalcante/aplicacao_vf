@@ -43,53 +43,53 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.R_LIBS_USER }}
-          key: r-pkgs-${{ hashFiles('**/DESCRIPTION', '.github/workflows/render-quarto.yml') }}
-          restore-keys: r-pkgs-
+          key: r-pkgs-${{ hashFiles('.github/workflows/render-quarto.yml') }}
 
-      # 5. Instalar pacotes R
+      # 5. Instalar pacotes R (usando shell: Rscript {0} — sem problemas de quoting)
       - name: Install R packages
+        shell: Rscript {0}
         env:
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          Rscript -e '
-            pkgs <- c(
-              "tidyverse", "sf", "spdep", "GWmodel",
-              "MASS", "robustbase", "car", "lmtest",
-              "corrplot", "ggspatial", "knitr", "rmarkdown", "kableExtra",
-              "gridExtra", "scales", "readxl", "openxlsx",
-              "writexl", "stringi", "purrr", "broom", "remotes", "pak"
-            )
-            missing <- pkgs[!pkgs %in% installed.packages()[,"Package"]]
-            if (length(missing)) install.packages(missing, repos="https://cloud.r-project.org")
+          pkgs <- c(
+            "rmarkdown", "knitr",
+            "tidyverse", "sf", "spdep", "GWmodel",
+            "MASS", "robustbase", "car", "lmtest",
+            "corrplot", "ggspatial", "kableExtra",
+            "gridExtra", "scales", "readxl", "openxlsx",
+            "writexl", "stringi", "purrr", "broom", "remotes"
+          )
+          missing <- pkgs[!pkgs %in% installed.packages()[, "Package"]]
+          if (length(missing)) {
+            install.packages(missing, repos = "https://cloud.r-project.org")
+          }
 
-            # Pacotes do GitHub — usa GITHUB_PAT automaticamente via remotes
-            github_pkgs <- list(
-              mgwnbr  = "douglasmesquita/mgwnbr",
-              gwzinbr = "douglasmesquita/gwzinbr"
-            )
-            for (pkg in names(github_pkgs)) {
-              if (!pkg %in% installed.packages()[,"Package"]) {
-                message("Instalando ", pkg, " do GitHub...")
-                tryCatch(
-                  remotes::install_github(
-                    github_pkgs[[pkg]],
-                    auth_token = Sys.getenv("GITHUB_PAT"),
-                    quiet      = FALSE,
-                    upgrade    = "never"
-                  ),
-                  error = function(e) {
-                    warning("Nao foi possivel instalar ", pkg, ": ", conditionMessage(e))
-                  }
-                )
-              }
+          github_pkgs <- list(
+            mgwnbr  = "douglasmesquita/mgwnbr",
+            gwzinbr = "douglasmesquita/gwzinbr"
+          )
+          for (pkg in names(github_pkgs)) {
+            if (!pkg %in% installed.packages()[, "Package"]) {
+              message("Instalando ", pkg, " do GitHub...")
+              tryCatch(
+                remotes::install_github(
+                  github_pkgs[[pkg]],
+                  auth_token = Sys.getenv("GITHUB_PAT"),
+                  quiet      = FALSE,
+                  upgrade    = "never"
+                ),
+                error = function(e) {
+                  warning("Nao foi possivel instalar ", pkg, ": ", conditionMessage(e))
+                }
+              )
             }
-          '
+          }
 
       # 6. Instalar Quarto
       - name: Setup Quarto
         uses: quarto-dev/quarto-actions/setup@v2
 
-      # 7. Cache do Quarto/knitr (evita re-executar modelos GWR pesados)
+      # 7. Cache do Quarto/knitr
       - name: Cache Quarto computations
         uses: actions/cache@v4
         with:
