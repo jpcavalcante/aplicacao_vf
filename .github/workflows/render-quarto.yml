@@ -55,7 +55,7 @@ jobs:
             pkgs <- c(
               "tidyverse", "sf", "spdep", "GWmodel",
               "MASS", "robustbase", "car", "lmtest",
-              "corrplot", "ggspatial", "knitr", "kableExtra",
+              "corrplot", "ggspatial", "knitr", "rmarkdown", "kableExtra",
               "gridExtra", "scales", "readxl", "openxlsx",
               "writexl", "stringi", "purrr", "broom", "remotes", "pak"
             )
