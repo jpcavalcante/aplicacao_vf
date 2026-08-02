@@ -55,10 +55,10 @@ library(stringi)     # stri_trans_general() — remoção de diacríticos
 dir_dados  <- "dados"
 dir_aux    <- "arquivos_auxiliares"   # scripts de envelope simulado
 dir_cache  <- "_cache"                # modelo GWR serializado
-dir_output <- "figuras_output"
+dir_output <- "Documents/aplicacao_vf_mestrado/apresentacao_mestrado/diretorio_dissertacao/figuras/"
 
-if (!dir.exists(dir_cache))  dir.create(dir_cache,  recursive = TRUE)
-if (!dir.exists(dir_output)) dir.create(dir_output, recursive = TRUE)
+#if (!dir.exists(dir_cache))  dir.create(dir_cache,  recursive = TRUE)
+#if (!dir.exists(dir_output)) dir.create(dir_output, recursive = TRUE)
 
 
 # =============================================================================
@@ -69,7 +69,7 @@ if (!dir.exists(dir_output)) dir.create(dir_output, recursive = TRUE)
 # densidade de igrejas e bares, e coordenadas UTM do centroide ponderado.
 
 distritos <- st_read(
-  file.path(dir_dados, "base_mestrado.gpkg"),
+  file.path("Documents/aplicacao_vf_mestrado/aplicacao_vf/Script_aplicacao/dados/base_mestrado.gpkg"),
   layer = "distritos",
   quiet = TRUE
 )
@@ -187,6 +187,40 @@ ggsave(file.path(dir_output, "mapa_taxa_padronizada_vf_2018_2022.png"),
 
 # Estatísticas descritivas da TIP
 print(summary(distritos$tip))
+
+##############
+breaks <- c(0, 1, 11, 26, 51, 76, 101, 151, 201, 301, max(distritos$VF_2018_2022) + 1)
+labels <- c("0", "1–10", "11–25", "26–50", "51–75",
+            "76–100", "101–150", "151–200", "201–300", "301+")
+
+freq_df <- distritos %>%
+  st_drop_geometry() %>%
+  mutate(intervalo = cut(VF_2018_2022,
+                         breaks = breaks,
+                         labels = labels,
+                         right  = FALSE)) %>%
+  count(intervalo, name = "frequencia") %>%
+  complete(intervalo, fill = list(frequencia = 0))
+
+p <- ggplot(freq_df, aes(x = intervalo, y = frequencia)) +
+  geom_col(fill = "#4292c6", color = "white", width = 0.75) +
+  labs(
+    x = "Número de casos de violência física (2018–2022)",
+    y = "Frequência (distritos)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor   = element_blank(),
+    panel.grid.major.x = element_blank()
+  )
+
+ggsave(
+  filename = file.path(dir_output, "dist_vf.png"),
+  plot     = p,
+  width    = 16, height = 10, units = "cm",
+  dpi      = 300
+)
+###########
 
 # Boxplot robusto da TIP com rótulos nos outliers
 # adjbox() ajusta os limites pelo medcouple — mais adequado para distribuições
@@ -473,6 +507,8 @@ p_resid_nb <- ggplot(distritos) +
   geom_sf(aes(fill = resid_nb)) +
   scale_fill_gradient2(midpoint = median(distritos$resid_nb, na.rm = TRUE),
                        low = "blue", mid = "white", high = "red",
+                       limits = c(-3.5, 9.5),
+                       breaks = c(0, 2.5, 5, 7.5),
                        name = NULL) +
   annotation_scale(location = "br", width_hint = 0.25,
                    pad_x = unit(0.2, "cm"), pad_y = unit(0.2, "cm")) +
@@ -483,6 +519,8 @@ p_resid_nb <- ggplot(distritos) +
         legend.title     = element_blank(),
         legend.text      = element_text(size = 9))
 print(p_resid_nb)
+
+
 ggsave(file.path(dir_output, "mapa_residuos_negbin.png"),
        plot = p_resid_nb, width = 8, height = 6, dpi = 300, bg = "white")
 
@@ -522,18 +560,18 @@ cat("Zeros observados:", zeros_obs,
 
 classifica_lisa <- function(x, I_local, p_valor, media_global, alfa = 0.1) {
   if (p_valor > alfa)                   return("Não significativo")
-  if (x >= media_global && I_local > 0) return("High-High")
-  if (x  < media_global && I_local > 0) return("Low-Low")
-  if (x >= media_global && I_local < 0) return("High-Low")
-  if (x  < media_global && I_local < 0) return("Low-High")
+  if (x >= media_global && I_local > 0) return("Alto-Alto")
+  if (x  < media_global && I_local > 0) return("Baixo-Baixo")
+  if (x >= media_global && I_local < 0) return("Alto-Baixo")
+  if (x  < media_global && I_local < 0) return("Baixo-Alto")
   return("Não classificado")
 }
 
 cores_lisa <- c(
-  "High-High"         = "#b2182b",
-  "Low-Low"           = "#2166ac",
-  "High-Low"          = "#fddb6d",
-  "Low-High"          = "#44ba4a",
+  "Alto-Alto"         = "#b2182b",
+  "Baixo-Baixo"           = "#2166ac",
+  "Alto-Baixo"          = "#fddb6d",
+  "Baixo-Alto"          = "#44ba4a",
   "Não significativo" = "#f7f7f7"
 )
 
@@ -729,6 +767,127 @@ walk(
   }
 )
 
+
+##########
+library(dplyr)
+
+vars_gwr <- c("comodo", "composta", "mais5", "mulher_resp")
+
+resumo_sig <- function(v) {
+  col_coef <- paste0("coef_", v)
+  col_sig  <- paste0("sig_",  v)
+  
+  # Aplica a mesma máscara do mapa: NA onde não significativo
+  vals <- ifelse(
+    grepl("not significant", distritos[[col_sig]], ignore.case = TRUE),
+    NA_real_,
+    as.numeric(distritos[[col_coef]])
+  )
+  
+  n_sig   <- sum(!is.na(vals))
+  n_total <- length(vals)
+  
+  tibble(
+    Variável        = v,
+    N_significativo = n_sig,
+    N_total         = n_total,
+    Média           = round(mean(vals, na.rm = TRUE), 3),
+    `Desvio-padrão` = round(sd(vals,   na.rm = TRUE), 3),
+    Mínimo          = round(min(vals,   na.rm = TRUE), 3),
+    `1º Quartil`    = round(quantile(vals, 0.25, na.rm = TRUE), 3),
+    Mediana         = round(median(vals,   na.rm = TRUE), 3),
+    `3º Quartil`    = round(quantile(vals, 0.75, na.rm = TRUE), 3),
+    Máximo          = round(max(vals,   na.rm = TRUE), 3)
+  )
+}
+
+# Coeficientes de regressão (apenas significativos)
+resultado <- bind_rows(lapply(vars_gwr, resumo_sig))
+
+# Alpha (superdispersão) — sem filtro de significância, conforme o mapa
+vals_alpha <- as.numeric(distritos$coef_alpha)
+resultado_alpha <- tibble(
+  Variável        = "alpha",
+  N_significativo = sum(!is.na(vals_alpha)),
+  N_total         = length(vals_alpha),
+  Média           = round(mean(vals_alpha, na.rm = TRUE), 3),
+  `Desvio-padrão` = round(sd(vals_alpha,   na.rm = TRUE), 3),
+  Mínimo          = round(min(vals_alpha,   na.rm = TRUE), 3),
+  `1º Quartil`    = round(quantile(vals_alpha, 0.25, na.rm = TRUE), 3),
+  Mediana         = round(median(vals_alpha,   na.rm = TRUE), 3),
+  `3º Quartil`    = round(quantile(vals_alpha, 0.75, na.rm = TRUE), 3),
+  Máximo          = round(max(vals_alpha,   na.rm = TRUE), 3)
+)
+
+resultado_final <- bind_rows(resultado, resultado_alpha)
+
+print(resultado_final, n = Inf)
+
+
+
+#################################### tabela de comparacao
+
+
+# Modelo 1 — adaptativa, AICc, h=62
+mod1 <- gwzinbr(
+  data = tab_gwr, formula = formula_final,
+  lat = "lat_utm", long = "long_utm", offset = "log_casos_esp",
+  method = "adaptive_bsq", model = "negbin", force = TRUE, distancekm = FALSE, h = 62
+)
+
+# Modelo 2 — adaptativa, CV, h=12
+mod2 <- gwzinbr(
+  data = tab_gwr, formula = formula_final,
+  lat = "lat_utm", long = "long_utm", offset = "log_casos_esp",
+  method = "adaptive_bsq", model = "negbin", force = TRUE, distancekm = FALSE, h = 12
+)
+
+# Modelo 3 — fixa, AICc, h=12573
+mod3 <- gwzinbr(
+  data = tab_gwr, formula = formula_final,
+  lat = "lat_utm", long = "long_utm", offset = "log_casos_esp",
+  method = "fixed_g", model = "negbin", force = TRUE, distancekm = FALSE, h = 12573
+)
+
+# Modelo 4 — fixa, CV, h=55278
+mod4 <- gwzinbr(
+  data = tab_gwr, formula = formula_final,
+  lat = "lat_utm", long = "long_utm", offset = "log_casos_esp",
+  method = "fixed_g", model = "negbin", force = TRUE, distancekm = FALSE, h = 55278
+)
+
+# Monta a tabela
+extrair_medidas <- function(mod, formula, metodo, criterio, h) {
+  m <- mod$measures
+  data.frame(
+    formula              = formula,
+    metodo               = metodo,
+    criterio             = criterio,
+    h                    = h,
+    log_vero             = round(m["full_ll"],     3),
+    deviance             = round(m["deviance"],    3),
+    AIC                  = round(m["AIC"],         3),
+    AICc                 = round(m["AICc"],        3),
+    R2                   = round(m["pct_ll"],      4),
+    R2_ajustado          = round(m["adj_pct_ll"],  4),
+    n_params             = round(m["n_params"],    1)
+  )
+}
+
+tabela_ajuste <- rbind(
+  extrair_medidas(mod1, "sem igrejas", "adaptativa", "AICc",  62),
+  extrair_medidas(mod2, "sem igrejas", "adaptativa", "CV",    12),
+  extrair_medidas(mod3, "sem igrejas", "fixa",       "AICc",  12573),
+  extrair_medidas(mod4, "sem igrejas", "fixa",       "CV",    55278)
+)
+
+rownames(tabela_ajuste) <- NULL
+print(tabela_ajuste)
+
+
+###########################################################
+#######
+
 # ---------------------------------------------------------------------------
 # 10.5 Resíduos do GWR-NB e diagnóstico espacial
 # Moran I ≈ 0 (p > 0,05): GWR removeu a dependência espacial residual.
@@ -764,3 +923,390 @@ ggsave(file.path(dir_output, "mapa_residuos_gwr_negbin.png"),
 # Saída gerada: _cache/mod_gwr.rds
 # Carregar com: mod_gwr <- readRDS("_cache/mod_gwr.rds")
 # =============================================================================
+
+# =============================================================================
+# RBNIZGP — Regressão Binomial Negativa Inflacionada de Zeros Geograficamente
+#            Ponderada (Geographically Weighted Zero-Inflated Negative Binomial)
+#
+# Dois cenários testados:
+#   Modelo A — todas as variáveis no componente de contagem E no componente de
+#              inflação de zeros (modelo simétrico completo)
+#   Modelo B — todas as variáveis no componente de contagem, apenas renda no
+#              componente de inflação de zeros (inflação parcimoniosa)
+#
+# Parâmetro de suavização reutilizado do modelo RBNGP (h = 62, adaptativa,
+# AICc). Recomenda-se otimizá-lo novamente para cada modelo RBNIZGP caso os
+# resultados divergirem do esperado.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# 0. Pacotes
+# ---------------------------------------------------------------------------
+library(gwzinbr)
+library(ggplot2)
+library(dplyr)
+library(sf)
+library(ggspatial)
+library(purrr)
+
+# ---------------------------------------------------------------------------
+# 1. Padronização (z-score) nas covariáveis
+# Inclui "renda" para que possa entrar no componente zi do Modelo B.
+# O offset não é padronizado.
+# ---------------------------------------------------------------------------
+vars_contagem <- c("comodo", "composta", "mais5", "mulher_resp")
+vars_zi_b     <- c("rendap")                     # Modelo B: apenas renda no zi
+vars_escalar  <- unique(c(vars_contagem, vars_zi_b))
+
+tab_zinb <- tab
+for (v in vars_escalar) {
+  tab_zinb[[v]] <- as.numeric(scale(tab_zinb[[v]]))
+}
+
+# ---------------------------------------------------------------------------
+# 2. Fórmulas
+# ---------------------------------------------------------------------------
+# Componente de contagem (igual nos dois modelos)
+formula_count <- VF_2018_2022 ~ comodo + composta + mais5 + mulher_resp
+
+# Componente de inflação de zeros
+# Modelo A: mesmas variáveis da contagem
+formula_zi_a  <- ~ comodo + composta + mais5 + mulher_resp
+
+# Modelo B: apenas renda
+formula_zi_b  <- ~ rendap
+
+
+# ---------------------------------------------------------------------------
+# GSS — Seleção do parâmetro de suavização por Busca por Seção Áurea
+# ---------------------------------------------------------------------------
+args_golden_zinb <- list(
+  data       = tab_zinb,
+  lat        = "lat_utm",
+  long       = "long_utm",
+  offset     = "log_casos_esp",
+  model      = "zinb",
+  globalmin  = TRUE,
+  distancekm = FALSE,
+  force      = TRUE,
+  method     = "adaptive_bsq",
+  bandwidth  = "aic"
+)
+
+# Modelo A — zi completo
+message("\n>>> GSS Modelo A (zi completo)...")
+gss_a <- do.call(Golden, c(args_golden_zinb,
+                           list(formula  = formula_count,
+                                xvarinf = c("comodo", "composta", "mais5", "mulher_resp"))))
+h_a <- gss_a$min_bandwidth[1]
+cat("h ótimo Modelo A:", h_a, "\n")
+
+#Global Minimum (Da Silva and Mendes, 2018)
+#Bandwidth: 18
+mod_zinb_a <- gwzinbr(
+  data       = tab_zinb,
+  formula    = formula_count,
+  xvarinf    = c("comodo", "composta", "mais5", "mulher_resp"),
+  lat        = "lat_utm",
+  long       = "long_utm",
+  offset     = "log_casos_esp",
+  method     = "adaptive_bsq",
+  model      = "zinb",
+  force      = TRUE,
+  distancekm = FALSE,
+  h          = 18
+)
+
+
+# Modelo B — zi = renda
+message("\n>>> GSS Modelo B (zi = renda)...")
+gss_b <- do.call(Golden, c(args_golden_zinb,
+                           list(formula  = formula_count,
+                                xvarinf = c("rendap"))))
+h_b <- gss_b$min_bandwidth[1]
+cat("h ótimo Modelo B:", h_b, "\n")
+#Global Minimum (Da Silva and Mendes, 2018)
+#Bandwidth: 67
+
+
+# Gráficos de convergência
+iter_a  <- gss_a$iterations
+p_gss_a <- ggplot(
+  data.frame(h = c(iter_a$h1, iter_a$h2), aic = c(iter_a$cv1, iter_a$cv2)),
+  aes(x = h, y = aic)
+) +
+  geom_point() + geom_line() +
+  labs(x = "Parâmetro de suavização (h)", y = "AICc") +
+  theme_minimal()
+ggsave(file.path(dir_output, "gss_zinb_a.png"),
+       plot = p_gss_a, width = 8, height = 6, dpi = 300)
+
+iter_b  <- gss_b$iterations
+p_gss_b <- ggplot(
+  data.frame(h = c(iter_b$h1, iter_b$h2), aic = c(iter_b$cv1, iter_b$cv2)),
+  aes(x = h, y = aic)
+) +
+  geom_point() + geom_line() +
+  labs(x = "Parâmetro de suavização (h)", y = "AICc") +
+  theme_minimal()
+ggsave(file.path(dir_output, "gss_zinb_b.png"),
+       plot = p_gss_b, width = 8, height = 6, dpi = 300)
+
+# ---------------------------------------------------------------------------
+# 3. Parâmetros comuns aos dois ajustes
+# ---------------------------------------------------------------------------
+args_base_a <- list(
+  data       = tab_zinb,
+  formula    = formula_count,
+  lat        = "lat_utm",
+  long       = "long_utm",
+  offset     = "log_casos_esp",
+  method     = "adaptive_bsq",
+  model      = "zinb",
+  force      = TRUE,
+  distancekm = FALSE,
+  h          = 18               
+)
+
+# ---------------------------------------------------------------------------
+# 4. Ajuste — Modelo A (contagem + zi completos)
+# ---------------------------------------------------------------------------
+message("\n>>> Ajustando Modelo A (zi completo)...")
+mod_zinb_a <- gwzinbr(
+  data       = tab_zinb,
+  formula    = formula_count,
+  xvarinf    = c("rendap"),
+  lat        = "lat_utm",
+  long       = "long_utm",
+  offset     = "log_casos_esp",
+  method     = "adaptive_bsq",
+  model      = "zinb",
+  force      = TRUE,
+  distancekm = FALSE,
+  h          = 18
+)
+
+
+saveRDS(mod_zinb_a, file.path(dir_cache, "mod_zinb_a.rds"))
+message("Modelo A salvo em ", file.path(dir_cache, "mod_zinb_a.rds"))
+
+
+
+# ---------------------------------------------------------------------------
+# 5. Ajuste — Modelo B (zi parcimoniosa: apenas renda)
+# ---------------------------------------------------------------------------
+
+mod_zinb_b <- gwzinbr(
+  data       = tab_zinb,
+  formula    = formula_count,
+  xvarinf    = c("rendap"),
+  lat        = "lat_utm",
+  long       = "long_utm",
+  offset     = "log_casos_esp",
+  method     = "adaptive_bsq",
+  model      = "zinb",
+  force      = FALSE,
+  distancekm = FALSE,
+  h          = 67
+)
+
+saveRDS(mod_zinb_b, file.path(dir_cache, "mod_zinb_b.rds"))
+message("Modelo B salvo em ", file.path(dir_cache, "mod_zinb_b.rds"))
+
+mb <- mod_zinb_b$measures
+cat("\n--- RBNIZGP Modelo B (zi = renda) ---\n")
+cat("Deviance:", round(mb["deviance"], 3),
+    " AICc:",   round(mb["AICc"],     3),
+    " Pseudo R²:", round(mb["pct_ll"], 3), "\n")
+print(mod_zinb_b$descript_stats_gwr_param_estimates)
+
+
+# ---------------------------------------------------------------------------
+# 7. Função auxiliar de mapas (reutilizável para os dois modelos)
+# ---------------------------------------------------------------------------
+mapa_coef_zi <- function(distritos_df, v, col_sig = NULL) {
+  col_coef <- paste0("coef_", v)
+  
+  distritos_df$fill <- if (is.null(col_sig)) {
+    distritos_df[[col_coef]]
+  } else {
+    ifelse(grepl("not significant", distritos_df[[col_sig]], ignore.case = TRUE),
+           NA_real_, distritos_df[[col_coef]])
+  }
+  
+  ggplot(distritos_df) +
+    geom_sf(aes(fill = fill), color = "#f7f7f7", linewidth = 0.35) +
+    scale_fill_gradient2(
+      low = "#2166ac", mid = "white", high = "#b2182b",
+      midpoint = 0, na.value = "grey90", name = NULL
+    ) +
+    annotation_scale(location = "br", width_hint = 0.25,
+                     pad_x = unit(0.2, "cm"), pad_y = unit(0.2, "cm")) +
+    theme_minimal() +
+    theme(axis.text       = element_blank(),
+          axis.ticks      = element_blank(),
+          panel.grid      = element_line(color = "grey90", linewidth = 0.2),
+          legend.position = "right",
+          legend.title    = element_blank(),
+          legend.text     = element_text(size = 9),
+          plot.title      = element_blank())
+}
+
+# ---------------------------------------------------------------------------
+# 9. Mapas — Modelo B
+# ---------------------------------------------------------------------------
+coefs_b <- as.data.frame(mod_zinb_b$parameter_estimates)
+alpha_b  <- as.data.frame(mod_zinb_b$alpha_estimates)
+dist_b   <- distritos
+
+for (v in vars_contagem) {
+  dist_b[[paste0("coef_", v)]] <- as.numeric(coefs_b[[v]])
+  dist_b[[paste0("sig_",  v)]] <- coefs_b[[paste0("sig_", v)]]
+}
+
+# Componente zi: intercepto
+dist_b$coef_zi_Intercept <- as.numeric(coefs_b[["Inf_Intercept"]])
+dist_b$sig_zi_Intercept  <- coefs_b[["sig_Inf_Intercept"]]
+
+# Componente zi: renda
+dist_b$coef_zi_rendap <- as.numeric(coefs_b[["Inf_rendap"]])
+dist_b$sig_zi_rendap  <- coefs_b[["sig_Inf_rendap"]]
+
+dist_b$coef_alpha <- as.numeric(alpha_b[, "alpha"])
+vars_mapas_b <- c(paste0("coef_", vars_contagem), "coef_zi_renda", "coef_alpha")
+
+walk(vars_mapas_b, function(col) {
+  v <- sub("^coef_(zi_)?", "", col)
+  prefixo <- ifelse(grepl("^coef_zi_", col), "zi_", "")
+  sig_col <- if (col == "coef_alpha") NULL else paste0("sig_", prefixo, v)
+  
+  p <- mapa_coef_zi(dist_b, paste0(prefixo, v), sig_col)
+  fname <- paste0("mapa_zinb_b_", col, ".png")
+  ggsave(file.path(dir_output, fname), plot = p,
+         width = 10, height = 7.5, dpi = 300, bg = "white")
+  message("Salvo: ", fname)
+})
+
+# ---------------------------------------------------------------------------
+# 10. Medidas-resumo dos coeficientes locais significativos
+# ---------------------------------------------------------------------------
+resumo_coefs_zinb <- function(dist_df, vars, prefixo = "") {
+  bind_rows(lapply(vars, function(v) {
+    col_coef <- paste0("coef_", prefixo, v)
+    col_sig  <- paste0("sig_",  prefixo, v)
+    
+    niveis <- c("significant at 99%", "significant at 95%",
+                "significant at 90%", "not significant at 90%")
+    
+    if (col_sig %in% names(dist_df)) {
+      contagens <- table(factor(dist_df[[col_sig]], levels = niveis))
+      vals <- ifelse(grepl("not significant", dist_df[[col_sig]], ignore.case = TRUE),
+                     NA_real_, as.numeric(dist_df[[col_coef]]))
+    } else {
+      contagens <- setNames(rep(NA_integer_, 4), niveis)
+      vals <- as.numeric(dist_df[[col_coef]])
+    }
+    
+    tibble(
+      Variável      = paste0(prefixo, v),
+      `sig 99%`     = as.integer(contagens["significant at 99%"]),
+      `sig 95%`     = as.integer(contagens["significant at 95%"]),
+      `sig 90%`     = as.integer(contagens["significant at 90%"]),
+      `não sig`     = as.integer(contagens["not significant at 90%"]),
+      N_total         = length(vals),
+      Média           = round(mean(vals, na.rm = TRUE), 3),
+      `Desvio-padrão` = round(sd(vals,   na.rm = TRUE), 3),
+      Mínimo          = round(min(vals,   na.rm = TRUE), 3),
+      `1º Quartil`    = round(quantile(vals, 0.25, na.rm = TRUE), 3),
+      Mediana         = round(median(vals,   na.rm = TRUE), 3),
+      `3º Quartil`    = round(quantile(vals, 0.75, na.rm = TRUE), 3),
+      Máximo          = round(max(vals,   na.rm = TRUE), 3)
+    )
+  }))
+}
+
+cat("\n=== Medidas-resumo RBNIZGP-B ===\n")
+resumo_b <- bind_rows(
+  resumo_coefs_zinb(dist_b, vars_contagem,   prefixo = ""),
+  resumo_coefs_zinb(dist_b, "Intercept",     prefixo = "zi_"),
+  resumo_coefs_zinb(dist_b, "rendap",        prefixo = "zi_"),   # era "renda", agora "rendap"
+  tibble(
+    Variável        = "alpha",
+    `sig 99%`       = NA_integer_,
+    `sig 95%`       = NA_integer_,
+    `sig 90%`       = NA_integer_,
+    `não sig`       = NA_integer_,
+    N_total         = nrow(dist_b),
+    Média           = round(mean(dist_b$coef_alpha, na.rm = TRUE), 3),
+    `Desvio-padrão` = round(sd(dist_b$coef_alpha,   na.rm = TRUE), 3),
+    Mínimo          = round(min(dist_b$coef_alpha,   na.rm = TRUE), 3),
+    `1º Quartil`    = round(quantile(dist_b$coef_alpha, 0.25, na.rm = TRUE), 3),
+    Mediana         = round(median(dist_b$coef_alpha,   na.rm = TRUE), 3),
+    `3º Quartil`    = round(quantile(dist_b$coef_alpha, 0.75, na.rm = TRUE), 3),
+    Máximo          = round(max(dist_b$coef_alpha,   na.rm = TRUE), 3)
+  )
+)
+print(resumo_b, n = Inf)
+# Exporta CSVs
+write.csv(comparacao, file.path(dir_output, "comparacao_modelos.csv"), row.names = FALSE)
+write.csv(resumo_a,   file.path(dir_output, "resumo_zinb_a.csv"),      row.names = FALSE)
+write.csv(resumo_b,   file.path(dir_output, "resumo_zinb_b.csv"),      row.names = FALSE)
+message("\nCSVs salvos em ", dir_output)
+
+
+# =============================================================================
+# FIM DO SCRIPT
+# Saída gerada:
+#   _cache/mod_zinb_a.rds  — RBNIZGP-A (zi completo)
+#   _cache/mod_zinb_b.rds  — RBNIZGP-B (zi = renda)
+#   figuras_output/mapa_zinb_a_*.png
+#   figuras_output/mapa_zinb_b_*.png
+#   figuras_output/comparacao_modelos.csv
+#   figuras_output/resumo_zinb_a.csv
+#   figuras_output/resumo_zinb_b.csv
+# =============================================================================
+
+# Variável resposta binária: 1 se zero, 0 caso contrário
+zero_flag <- as.integer(tab_zinb$VF_2018_2022 == 0)  # substitua "y" pelo nome da sua variável resposta
+
+cat("Zeros observados:", sum(zero_flag), "\n")
+cat("Não-zeros:       ", sum(1 - zero_flag), "\n\n")
+
+# Tenta com as 4 variáveis — deve dar warning de "fitted probabilities 0 or 1"
+# ou coeficientes NA por separação perfeita / rank deficiente
+mod_inf <- glm(
+  zero_flag ~ comodo + composta + mais5 + mulher_resp,
+  data   = tab_zinb,
+  family = binomial(link = "logit")
+)
+summary(mod_inf)
+
+# Verifica a matriz de design (equivalente ao G do gwzinbr)
+G <- model.matrix(mod_inf)
+cat("\nPosto de G:", qr(G)$rank, "de", ncol(G), "colunas\n")
+cat("det(G'G) =", det(t(G) %*% G), "\n")
+
+# Tenta com as 4 variáveis — deve dar warning de "fitted probabilities 0 or 1"
+# ou coeficientes NA por separação perfeita / rank deficiente
+mod_inf2 <- glm(
+  zero_flag ~ rendap,
+  data   = tab_zinb,
+  family = binomial(link = "logit")
+)
+summary(mod_inf2)
+
+# Verifica a matriz de design (equivalente ao G do gwzinbr)
+G <- model.matrix(mod_inf2)
+cat("\nPosto de G:", qr(G)$rank, "de", ncol(G), "colunas\n")
+cat("det(G'G) =", det(t(G) %*% G), "\n")
+
+
+library(pscl)
+
+modelo_zinb_const <- zeroinfl(
+  VF_2018_2022 ~ comodo + composta + mais5 + mulher_resp + offset(log_casos_esp),
+  data = tab,
+  dist = "negbin"
+)
+
+summary(modelo_zinb_const)
